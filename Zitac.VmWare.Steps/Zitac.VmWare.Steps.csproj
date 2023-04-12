@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DecisionsSDK" Version="8.9.2" />
+         <Reference Include="VMware.Vim">
+       <HintPath>VMware.Vim.dll</HintPath>
+     </Reference>
+         <Reference Include="VMware.System.Private.ServiceModel">
+       <HintPath>VMware.System.Private.ServiceModel.dll</HintPath>
+     </Reference>
+              <Reference Include="VMware.Binding.WsTrust">
+       <HintPath>VMware.Binding.WsTrust.dll</HintPath>
+     </Reference>
+              <Reference Include="VMware.Binding.Wcf">
+       <HintPath>VMware.Binding.Wcf.dll</HintPath>
+     </Reference>
+                   <Reference Include="VimService">
+       <HintPath>VimService.dll</HintPath>
+     </Reference>
+  </ItemGroup>
+</Project>

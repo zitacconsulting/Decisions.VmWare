@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "29mkDI2Z55ifetkfTudJW7/3URFWO2VXlbcGYhRT4poQv4JKNu6D6/gEPnh3Aq4WHyx6ZyRez0SFvROu2IESKQ==",
+  "success": true,
+  "projectFilePath": "/home/kenny/Desktop/GIT/Decisions.VmWare/Zitac.VmWare.Steps/Zitac.VmWare.Steps.csproj",
+  "expectedPackageFiles": [
+    "/home/kenny/.nuget/packages/decisionssdk/8.9.2/decisionssdk.8.9.2.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,115 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v7.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v7.0": {
+      "Zitac.VmWare.Steps/1.0.0": {
+        "dependencies": {
+          "DecisionsSDK": "8.9.2",
+          "VimService": "8.0.1.4742",
+          "VMware.Binding.Wcf": "13.0.0.5029",
+          "VMware.Binding.WsTrust": "13.0.0.5029",
+          "VMware.System.Private.ServiceModel": "4.4.5.0",
+          "VMware.Vim": "8.0.1.4742"
+        },
+        "runtime": {
+          "Zitac.VmWare.Steps.dll": {}
+        }
+      },
+      "DecisionsSDK/8.9.2": {
+        "runtime": {
+          "lib/net7.0/Decisions.Web.Core.dll": {
+            "assemblyVersion": "8.9.2.0",
+            "fileVersion": "8.9.2.5823"
+          },
+          "lib/net7.0/DecisionsFramework.dll": {
+            "assemblyVersion": "8.9.2.0",
+            "fileVersion": "8.9.2.5823"
+          }
+        }
+      },
+      "VimService/8.0.1.4742": {
+        "runtime": {
+          "VimService.dll": {
+            "assemblyVersion": "8.0.1.4742",
+            "fileVersion": "8.0.1.4742"
+          }
+        }
+      },
+      "VMware.Binding.Wcf/13.0.0.5029": {
+        "runtime": {
+          "VMware.Binding.Wcf.dll": {
+            "assemblyVersion": "13.0.0.5029",
+            "fileVersion": "13.0.0.5029"
+          }
+        }
+      },
+      "VMware.Binding.WsTrust/13.0.0.5029": {
+        "runtime": {
+          "VMware.Binding.WsTrust.dll": {
+            "assemblyVersion": "13.0.0.5029",
+            "fileVersion": "13.0.0.5029"
+          }
+        }
+      },
+      "VMware.System.Private.ServiceModel/4.4.5.0": {
+        "runtime": {
+          "VMware.System.Private.ServiceModel.dll": {
+            "assemblyVersion": "4.4.5.0",
+            "fileVersion": "4.4.5.0"
+          }
+        }
+      },
+      "VMware.Vim/8.0.1.4742": {
+        "runtime": {
+          "VMware.Vim.dll": {
+            "assemblyVersion": "8.0.1.4742",
+            "fileVersion": "8.0.1.4742"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Zitac.VmWare.Steps/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "DecisionsSDK/8.9.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-o5pHNPIxLcXj0LCluz9RHRz6pWg0hi1J+NSnH61ZQovbatSMSTYvbA3fdiXzOKKB/Zf7cST2qqbAJcOfmpqDTQ==",
+      "path": "decisionssdk/8.9.2",
+      "hashPath": "decisionssdk.8.9.2.nupkg.sha512"
+    },
+    "VimService/8.0.1.4742": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "VMware.Binding.Wcf/13.0.0.5029": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "VMware.Binding.WsTrust/13.0.0.5029": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "VMware.System.Private.ServiceModel/4.4.5.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "VMware.Vim/8.0.1.4742": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
