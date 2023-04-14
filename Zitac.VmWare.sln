@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zitac.VmWare.Steps", "Zitac.VmWare.Steps\Zitac.VmWare.Steps.csproj", "{A2BBF3D1-993A-4D8A-8445-90389CE54FB1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zitac.VmWare.Steps", "Zitac.VmWare\Zitac.VmWare.Steps.csproj", "{A2BBF3D1-993A-4D8A-8445-90389CE54FB1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
