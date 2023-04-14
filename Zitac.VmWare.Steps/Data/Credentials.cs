@@ -11,11 +11,11 @@ namespace Zitac.VmWare.Steps;
         public class Credentials : IDebuggerJsonProvider
     {
         [WritableValue]
-        public string Username { get; set; }
+        public string? Username { get; set; }
 
         [WritableValue]
         [PasswordText]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         public object GetJsonDebugView()
         {
