@@ -5,18 +5,16 @@ using DecisionsFramework.Design.Properties;
 using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
+using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Snapshots by VM", "Integration", "VmWare", "Snapshots")]
+[AutoRegisterStep("Create Snapshot", "Integration", "VmWare", "Snapshots")]
 [Writable]
-public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class CreateSnapshot : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep //, INotifyPropertyChanged
 {
     [WritableValue]
     private bool ignoreSSLErrors;
-
-    [WritableValue]
-    private bool showOutcomeforNoResults;
 
     [PropertyClassification(0, "Ignore SSL Errors", new string[] { "Settings" })]
     public bool IgnoreSSLErrors
@@ -25,17 +23,18 @@ public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDa
         set { ignoreSSLErrors = value; }
 
     }
-    [PropertyClassification(1, "Show Outcome for No Results", new string[] { "Outcomes" })]
-    public bool ShowOutcomeforNoResults
-    {
-        get { return showOutcomeforNoResults; }
-        set
-        {
-            showOutcomeforNoResults = value;
-            this.OnPropertyChanged("OutcomeScenarios");
-        }
 
+
+    public IInputMapping[] DefaultInputs
+    {
+        get
+        {
+            IInputMapping[] inputMappingArray = new IInputMapping[1];
+            inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Quiesce File System" };
+            return inputMappingArray;
+        }
     }
+
     public DataDescription[] InputData
     {
         get
@@ -45,6 +44,10 @@ public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDa
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "VMID"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Snapshot Name"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Snapshot Description"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Include Memory State"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Quiesce File System"));
             return dataDescriptionList.ToArray();
         }
     }
@@ -55,11 +58,7 @@ public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDa
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Snapshot), "Snapshots", true)));
-            if (ShowOutcomeforNoResults)
-            {
-                outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
-            }
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done"));
             outcomeScenarioDataList.Add(new OutcomeScenarioData("Error", new DataDescription(typeof(string), "Error Message")));
             return outcomeScenarioDataList.ToArray();
         }
@@ -70,7 +69,10 @@ public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDa
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
         string VmID = data.Data["VMID"] as string;
-
+        string SnapshotName = data.Data["Snapshot Name"] as string;
+        string? SnapshotDescription = data.Data["Snapshot Description"] as string;
+        bool? Memory = data.Data["Include Memory State"] as bool?;
+        bool? Quiesce = data.Data["Quiesce File System"] as bool?;
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -83,33 +85,31 @@ public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDa
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            ManagedObjectReference mor = new ManagedObjectReference();
-            mor.Type = "VirtualMachine";
-            mor.Value = VmID;
+            ManagedObjectReference vmMor = new ManagedObjectReference();
+            vmMor.Type = "VirtualMachine";
+            vmMor.Value = VmID;
 
-            var vm = (VirtualMachine)vimClient.GetView(mor, null);
+            VirtualMachine vm = new VirtualMachine(vimClient, vmMor);
+            ManagedObjectReference taskMor = vm.CreateSnapshot_Task(SnapshotName, SnapshotDescription, Memory ?? false, Quiesce ?? false);
+
+
+            VMware.Vim.Task TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
+            while ((TaskResult.Info.State.ToString() == "running") || (TaskResult.Info.State.ToString() == "queued"))
+            {
+                //Console.WriteLine(TaskResult.Info.State);
+                System.Threading.Thread.Sleep(2000);
+                TaskResult.UpdateViewData();
+            }
+
+            if (TaskResult.Info.State.ToString() == "error")
+            {
+                throw new Exception("Failed to create snapshot:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
+            }
 
             vimClient.Logout();
             vimClient.Disconnect();
 
-            List<Snapshot> SnapshotList = new List<Snapshot>();
-
-            if (vm.Snapshot != null)
-            {
-                SnapshotList = ProcessSnapshotTree(vm.Snapshot.RootSnapshotList);
-            }
-            else
-            {
-                if (ShowOutcomeforNoResults)
-                {
-                    return new ResultData("No Results");
-                }
-                //Console.WriteLine("No snapshots found for VM: " + vm.Name);
-            }
-
-            Dictionary<string, object> dictionary = new Dictionary<string, object>();
-            dictionary.Add("Snapshots", (object)SnapshotList.ToArray());
-            return new ResultData("Done", (IDictionary<string, object>)dictionary);
+            return new ResultData("Done");
 
         }
         catch (Exception e)
@@ -123,26 +123,5 @@ public class GetSnapshotsByVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDa
                 }
                 });
         }
-    }
-
-    static List<Snapshot> ProcessSnapshotTree(VirtualMachineSnapshotTree[] snapshotTree)
-    {
-        List<Snapshot> ReturnList = new List<Snapshot>();
-        foreach (var snapshot in snapshotTree)
-        {
-            Snapshot SnapshotToAdd = new Snapshot();
-            SnapshotToAdd.Name = snapshot.Name;
-            SnapshotToAdd.ID = snapshot.Snapshot.Value;
-            SnapshotToAdd.State = snapshot.State.ToString();
-            SnapshotToAdd.Description = snapshot.Description;
-            SnapshotToAdd.CreateTime = snapshot.CreateTime;
-
-            if (snapshot.ChildSnapshotList != null)
-            {
-                SnapshotToAdd.Children = ProcessSnapshotTree(snapshot.ChildSnapshotList).ToArray();
-            }
-            ReturnList.Add(SnapshotToAdd);
-        }
-        return ReturnList;
     }
 }

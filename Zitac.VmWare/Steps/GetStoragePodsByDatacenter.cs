@@ -119,7 +119,7 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
                 {
                     return new ResultData("No Results");
                 }
-                Console.WriteLine("No storage pods found.");
+                //Console.WriteLine("No storage pods found.");
             }
 
             // Disconnect from vSphere server
