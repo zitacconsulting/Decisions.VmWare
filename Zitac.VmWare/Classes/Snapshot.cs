@@ -1,5 +1,7 @@
 using System.Runtime.Serialization;
 
+namespace Zitac.VmWare.Steps;
+
 [DataContract]
 public class Snapshot
 {
