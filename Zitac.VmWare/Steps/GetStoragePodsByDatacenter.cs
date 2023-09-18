@@ -92,7 +92,7 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
             vimClient.Login(Credentials.Username, Credentials.Password);
 
             // Get the Datacenter by the provided ID
-            Datacenter Datacenter = (Datacenter)vimClient.GetView(datacenterRef, null);
+            VMware.Vim.Datacenter Datacenter = (VMware.Vim.Datacenter)vimClient.GetView(datacenterRef, null);
 
             // Create a filter that only lists the Storagepods with capacity that is not 0.
             NameValueCollection searchfilter = new NameValueCollection();

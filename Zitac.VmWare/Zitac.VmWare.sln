@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.001.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zitac.VmWare.Steps", "Zitac.VmWare.Steps.csproj", "{7ED99322-62C2-4F7B-8FCE-A6693915C87C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7ED99322-62C2-4F7B-8FCE-A6693915C87C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7ED99322-62C2-4F7B-8FCE-A6693915C87C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7ED99322-62C2-4F7B-8FCE-A6693915C87C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7ED99322-62C2-4F7B-8FCE-A6693915C87C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EA6A8A1E-28A4-4BFB-B1C7-8246AEE38D89}
+	EndGlobalSection
+EndGlobal

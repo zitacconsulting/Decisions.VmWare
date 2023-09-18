@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <DependsOn />
+  <Version>8.13.0.72228</Version>
+  <RequiresLicense>false</RequiresLicense>
+  <CompiledOnDate>2023-09-18T17:14:15.6182139+00:00</CompiledOnDate>
+  <CompiledOnServer>rack16</CompiledOnServer>
+  <Installed>false</Installed>
+  <IsGithubModule>false</IsGithubModule>
+</ModuleInfo>

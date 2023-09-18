@@ -5,6 +5,7 @@ using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
 
+
 namespace Zitac.VmWare.Steps;
 
 [AutoRegisterStep("Reboot VM", "Integration", "VmWare", "VM")]
