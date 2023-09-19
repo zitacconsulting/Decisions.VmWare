@@ -8,9 +8,9 @@ using DecisionsFramework.Design.Flow.CoreSteps;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Datacenters", "Integration", "VmWare", "Datacenter")]
+[AutoRegisterStep("Get Datacenter By ID", "Integration", "VmWare", "Datacenter")]
 [Writable]
-public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class GetDatacenterById : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -44,6 +44,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             List<DataDescription> dataDescriptionList = new List<DataDescription>();
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             return dataDescriptionList.ToArray();
         }
     }
@@ -54,7 +55,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Datacenter), "Datacenters", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Datacenter), "Datacenter", false)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -68,9 +69,10 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
     {
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
+        string DatacenterId = data.Data["Datacenter ID"] as string;
 
 
-        List<Datacenter> Datacenters = new List<Datacenter>();
+        Datacenter NewDc = new Datacenter();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -83,27 +85,17 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            // Retrieve ServiceContent
-            ServiceContent serviceContent = vimClient.ServiceContent;
-            ManagedObjectReference searchRoot = serviceContent.RootFolder;
-
-            // Retrieve all Datacenters
-            List<EntityViewBase> datacenters = vimClient.FindEntityViews(typeof(VMware.Vim.Datacenter), searchRoot, null, null);
+            ManagedObjectReference DatacenterMoref = new ManagedObjectReference();
+            DatacenterMoref.Type = "Datacenter";
+            DatacenterMoref.Value = DatacenterId;
 
 
-            if (datacenters != null)
+            VMware.Vim.Datacenter Datacenter = vimClient.GetView(DatacenterMoref, null) as VMware.Vim.Datacenter;
+            if (Datacenter != null)
             {
-                foreach (EntityViewBase evb in datacenters)
-                {
-                    VMware.Vim.Datacenter dc = evb as VMware.Vim.Datacenter;
-                    if (dc != null)
-                    {
-                        Datacenter NewDc = new Datacenter();
-                        NewDc.Name = dc.Name;
-                        NewDc.ID = dc.MoRef.Value;
-                        Datacenters.Add(NewDc);
-                    }
-                }
+                NewDc.Name = Datacenter.Name;
+                NewDc.ID = Datacenter.MoRef.Value;
+                
             }
             else
             {
@@ -132,7 +124,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("Datacenters", (object)Datacenters.ToArray());
+        dictionary.Add("Datacenter", (object)NewDc);
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 

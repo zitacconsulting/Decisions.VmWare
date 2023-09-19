@@ -5,12 +5,13 @@ using DecisionsFramework.Design.Properties;
 using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
+using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get StoragePods by Datacenter", "Integration", "VmWare", "Storage")]
+[AutoRegisterStep("Get Clusters", "Integration", "VmWare", "Cluster")]
 [Writable]
-public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class GetClusters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -36,6 +37,15 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
         }
 
     }
+    public IInputMapping[] DefaultInputs
+    {
+        get
+        {
+            IInputMapping[] inputMappingArray = new IInputMapping[1];
+            inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Datacenter ID" };
+            return inputMappingArray;
+        }
+    }
     public DataDescription[] InputData
     {
         get
@@ -55,7 +65,7 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(StoragePod), "StoragePods", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Cluster), "Clusters", true)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -71,14 +81,8 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
         Credentials Credentials = data.Data["Credentials"] as Credentials;
         string DatacenterId = data.Data["Datacenter ID"] as string;
 
-        // Build a Moref with the provided DatacenterID
-        var datacenterRef = new ManagedObjectReference
-        {
-            Type = "Datacenter",
-            Value = DatacenterId
-        };
 
-        List<StoragePod> StoragePods = new List<StoragePod>();
+        List<Cluster> Clusters = new List<Cluster>();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -91,26 +95,36 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            // Get the Datacenter by the provided ID
-            VMware.Vim.Datacenter Datacenter = (VMware.Vim.Datacenter)vimClient.GetView(datacenterRef, null);
+            ManagedObjectReference searchRoot = new ManagedObjectReference();
 
-            // Create a filter that only lists the Storagepods with capacity that is not 0.
-            NameValueCollection searchfilter = new NameValueCollection();
-            searchfilter.Add("Summary.Capacity", "^(?!0$)");
-
-
-            var storagePods = vimClient.FindEntityViews(typeof(VMware.Vim.StoragePod), datacenterRef, searchfilter, null);
-
-            if (storagePods != null)
+            if (String.IsNullOrEmpty(DatacenterId))
             {
-                foreach (VMware.Vim.StoragePod sp in storagePods)
+                // Retrieve ServiceContent
+                ServiceContent serviceContent = vimClient.ServiceContent;
+                searchRoot = serviceContent.RootFolder;
+
+            }
+            else
+            {
+                searchRoot.Type = "Datacenter";
+                searchRoot.Value = DatacenterId;
+            }
+            // Retrieve all Datacenters
+            List<EntityViewBase> clusters = vimClient.FindEntityViews(typeof(ClusterComputeResource), searchRoot, null, null);
+
+
+            if (clusters != null)
+            {
+                foreach (EntityViewBase evb in clusters)
                 {
-                    StoragePod NewPod = new StoragePod();
-                    NewPod.Name = sp.Name;
-                    NewPod.ID = sp.MoRef.Value;
-                    NewPod.Capacity = sp.Summary.Capacity;
-                    NewPod.FreeSpace = sp.Summary.FreeSpace;
-                    StoragePods.Add(NewPod);
+                    ClusterComputeResource cluster = evb as ClusterComputeResource;
+                    if (cluster != null)
+                    {
+                        Cluster NewCluster = new Cluster();
+                        NewCluster.Name = cluster.Name;
+                        NewCluster.ID = cluster.MoRef.Value;
+                        Clusters.Add(NewCluster);
+                    }
                 }
             }
             else
@@ -119,7 +133,6 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
                 {
                     return new ResultData("No Results");
                 }
-                //Console.WriteLine("No storage pods found.");
             }
 
             // Disconnect from vSphere server
@@ -141,7 +154,7 @@ public class GetStoragePodsByDatacenter : BaseFlowAwareStep, ISyncStep, IDataCon
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("Virtual Machines", (object)StoragePods.ToArray());
+        dictionary.Add("Clusters", (object)Clusters.ToArray());
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 

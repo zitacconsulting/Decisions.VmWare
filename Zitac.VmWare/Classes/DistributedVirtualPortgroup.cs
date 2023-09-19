@@ -5,7 +5,7 @@ using System.Runtime.Serialization;
 namespace Zitac.VmWare.Steps;
 
 [DataContract]
-public class StoragePod
+public class DistributedVirtualPortgroup
 {
 
     [DataMember]
@@ -13,12 +13,6 @@ public class StoragePod
 
     [DataMember]
     public string? ID { get; set; }
-
-    [DataMember]
-    public long Capacity { get; set; }
-
-    [DataMember]
-    public long FreeSpace { get; set; }
 
 }
 

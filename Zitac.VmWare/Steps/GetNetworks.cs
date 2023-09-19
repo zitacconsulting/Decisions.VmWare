@@ -5,12 +5,13 @@ using DecisionsFramework.Design.Properties;
 using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
+using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Datacenters", "Integration", "VmWare", "Datacenter")]
+[AutoRegisterStep("Get Networks", "Integration", "VmWare", "Network")]
 [Writable]
-public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -36,6 +37,15 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
         }
 
     }
+    public IInputMapping[] DefaultInputs
+    {
+        get
+        {
+            IInputMapping[] inputMappingArray = new IInputMapping[1];
+            inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Datacenter ID" };
+            return inputMappingArray;
+        }
+    }
     public DataDescription[] InputData
     {
         get
@@ -44,6 +54,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             List<DataDescription> dataDescriptionList = new List<DataDescription>();
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             return dataDescriptionList.ToArray();
         }
     }
@@ -54,7 +65,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Datacenter), "Datacenters", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Network), "Networks", true)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -68,9 +79,10 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
     {
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
+        string DatacenterId = data.Data["Datacenter ID"] as string;
 
 
-        List<Datacenter> Datacenters = new List<Datacenter>();
+        List<Network> Networks = new List<Network>();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -83,25 +95,35 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            // Retrieve ServiceContent
-            ServiceContent serviceContent = vimClient.ServiceContent;
-            ManagedObjectReference searchRoot = serviceContent.RootFolder;
+            ManagedObjectReference searchRoot = new ManagedObjectReference();
 
-            // Retrieve all Datacenters
-            List<EntityViewBase> datacenters = vimClient.FindEntityViews(typeof(VMware.Vim.Datacenter), searchRoot, null, null);
-
-
-            if (datacenters != null)
+            if (String.IsNullOrEmpty(DatacenterId))
             {
-                foreach (EntityViewBase evb in datacenters)
+                // Retrieve ServiceContent
+                ServiceContent serviceContent = vimClient.ServiceContent;
+                searchRoot = serviceContent.RootFolder;
+
+            }
+            else
+            {
+                searchRoot.Type = "Datacenter";
+                searchRoot.Value = DatacenterId;
+            }
+            // Retrieve all Datacenters
+            List<EntityViewBase> networks = vimClient.FindEntityViews(typeof(VMware.Vim.Network), searchRoot, null, null);
+
+
+            if (networks != null)
+            {
+                foreach (EntityViewBase evb in networks)
                 {
-                    VMware.Vim.Datacenter dc = evb as VMware.Vim.Datacenter;
-                    if (dc != null)
+                    VMware.Vim.Network network = evb as VMware.Vim.Network;
+                    if (network != null)
                     {
-                        Datacenter NewDc = new Datacenter();
-                        NewDc.Name = dc.Name;
-                        NewDc.ID = dc.MoRef.Value;
-                        Datacenters.Add(NewDc);
+                        Network NewNetwork = new Network();
+                        NewNetwork.Name = network.Name;
+                        NewNetwork.ID = network.MoRef.Value;
+                        Networks.Add(NewNetwork);
                     }
                 }
             }
@@ -132,7 +154,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("Datacenters", (object)Datacenters.ToArray());
+        dictionary.Add("Networks", (object)Networks.ToArray());
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 

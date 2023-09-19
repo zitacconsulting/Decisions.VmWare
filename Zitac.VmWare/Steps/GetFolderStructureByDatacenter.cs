@@ -5,12 +5,13 @@ using DecisionsFramework.Design.Properties;
 using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
+using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Datacenters", "Integration", "VmWare", "Datacenter")]
+[AutoRegisterStep("Get Folder Structure By Datacenter", "Integration", "VmWare", "Folder")]
 [Writable]
-public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class GetFolderStructureByDatacenter : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -36,6 +37,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
         }
 
     }
+
     public DataDescription[] InputData
     {
         get
@@ -44,6 +46,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             List<DataDescription> dataDescriptionList = new List<DataDescription>();
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             return dataDescriptionList.ToArray();
         }
     }
@@ -54,7 +57,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Datacenter), "Datacenters", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(FolderWithPath), "Folders", true)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -68,9 +71,10 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
     {
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
+        string DatacenterId = data.Data["Datacenter ID"] as string;
 
 
-        List<Datacenter> Datacenters = new List<Datacenter>();
+        List<FolderWithPath> Folders = new List<FolderWithPath>();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -83,27 +87,22 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            // Retrieve ServiceContent
-            ServiceContent serviceContent = vimClient.ServiceContent;
-            ManagedObjectReference searchRoot = serviceContent.RootFolder;
-
-            // Retrieve all Datacenters
-            List<EntityViewBase> datacenters = vimClient.FindEntityViews(typeof(VMware.Vim.Datacenter), searchRoot, null, null);
+            ManagedObjectReference DatacenterMoref = new ManagedObjectReference();
+            DatacenterMoref.Type = "Datacenter";
+            DatacenterMoref.Value = DatacenterId;
 
 
-            if (datacenters != null)
+            VMware.Vim.Datacenter Datacenter = vimClient.GetView(DatacenterMoref, null) as VMware.Vim.Datacenter;
+            if (Datacenter != null)
             {
-                foreach (EntityViewBase evb in datacenters)
-                {
-                    VMware.Vim.Datacenter dc = evb as VMware.Vim.Datacenter;
-                    if (dc != null)
-                    {
-                        Datacenter NewDc = new Datacenter();
-                        NewDc.Name = dc.Name;
-                        NewDc.ID = dc.MoRef.Value;
-                        Datacenters.Add(NewDc);
-                    }
-                }
+                // Initialize folder list
+                List<FolderWithPath> folderList = new List<FolderWithPath>();
+
+                // List folders under vmFolder in the Datacenter
+                folderList = ListVmFolders(vimClient, Datacenter.VmFolder, folderList, "");
+
+                Folders = folderList.OrderBy(o => o.Path).ToList();
+
             }
             else
             {
@@ -132,9 +131,31 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("Datacenters", (object)Datacenters.ToArray());
+        dictionary.Add("Folders", (object)Folders.ToArray());
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 
+    }
+    static List<FolderWithPath> ListVmFolders(VimClient vimClient, ManagedObjectReference folderMoRef, List<FolderWithPath> folderList, string currentPath = "")
+    {
+        Folder folder = (Folder)vimClient.GetView(folderMoRef, new string[] { "childEntity" });
+
+        foreach (var childEntity in folder.ChildEntity)
+        {
+            if (childEntity.Type == "Folder")
+            {
+                Folder childFolder = (Folder)vimClient.GetView(childEntity, new string[] { "name" });
+
+                FolderWithPath NewFolder = new FolderWithPath();
+                NewFolder.Name = childFolder.Name;
+                NewFolder.ID = childFolder.MoRef.Value;
+                NewFolder.Path = string.IsNullOrEmpty(currentPath) ? childFolder.Name : currentPath + "/" + childFolder.Name;
+                folderList.Add(NewFolder);
+
+                // Recursively list nested folders
+                ListVmFolders(vimClient, childEntity, folderList, NewFolder.Path);
+            }
+        }
+        return folderList;
     }
 }
