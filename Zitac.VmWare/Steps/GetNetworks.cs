@@ -113,6 +113,10 @@ public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
             List<EntityViewBase> networks = vimClient.FindEntityViews(typeof(VMware.Vim.Network), searchRoot, null, null);
 
 
+            // Disconnect from vSphere server
+            vimClient.Logout();
+            vimClient.Disconnect();
+
             if (networks != null)
             {
                 foreach (EntityViewBase evb in networks)
@@ -135,9 +139,6 @@ public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                 }
             }
 
-            // Disconnect from vSphere server
-            vimClient.Logout();
-            vimClient.Disconnect();
 
         }
         catch (Exception e)

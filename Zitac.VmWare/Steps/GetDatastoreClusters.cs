@@ -77,7 +77,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(DatastoreCluster), "DatastoreClusters", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(DatastoreCluster), "Datastore Clusters", true)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -146,7 +146,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                         {
                             foreach (var dsRef in pod.ChildEntity)
                             {
-                                Datastore datastore = vimClient.GetView(dsRef, null) as Datastore;
+                                VMware.Vim.Datastore datastore = vimClient.GetView(dsRef, null) as VMware.Vim.Datastore;
                                 if (datastore != null && datastore.Host != null && datastore.Host.Length > 0)
                                 {
                                     hasAssociatedHosts = true;
@@ -172,11 +172,15 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
             {
                 if (ShowOutcomeforNoResults)
                 {
+                    // Disconnect from vSphere server
+                    vimClient.Logout();
+                    vimClient.Disconnect();
                     return new ResultData("No Results");
                 }
                 //Console.WriteLine("No storage pods found.");
             }
 
+            
             // Disconnect from vSphere server
             vimClient.Logout();
             vimClient.Disconnect();
@@ -196,7 +200,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("Virtual Machines", (object)StoragePods.ToArray());
+        dictionary.Add("Datastore Clusters", (object)StoragePods.ToArray());
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 

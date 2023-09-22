@@ -108,6 +108,9 @@ public class GetFolderStructureByDatacenter : BaseFlowAwareStep, ISyncStep, IDat
             {
                 if (ShowOutcomeforNoResults)
                 {
+                    // Disconnect from vSphere server
+                    vimClient.Logout();
+                    vimClient.Disconnect();
                     return new ResultData("No Results");
                 }
             }

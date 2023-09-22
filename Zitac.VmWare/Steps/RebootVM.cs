@@ -155,6 +155,8 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                     timeout = timeout + 5;
                     if (specifyTimeout && timeout >= maxTimeout)
                     {
+                        vimClient.Logout();
+                        vimClient.Disconnect();
                         return new ResultData("Timeout");
                     }
                 }

@@ -109,6 +109,9 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
                 {
                     if (ShowOutcomeforNoResults)
                     {
+                        // Disconnect from vSphere server
+                        vimClient.Logout();
+                        vimClient.Disconnect();
                         return new ResultData("No Results");
                     }
                 }
@@ -118,6 +121,9 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
             {
                 if (ShowOutcomeforNoResults)
                 {
+                    // Disconnect from vSphere server
+                    vimClient.Logout();
+                    vimClient.Disconnect();
                     return new ResultData("No Results");
                 }
             }

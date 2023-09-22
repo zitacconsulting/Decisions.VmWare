@@ -9,9 +9,9 @@ using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Distributed Virtual Portgroup", "Integration", "VmWare", "Network")]
+[AutoRegisterStep("Get Datastores", "Integration", "VmWare", "Storage")]
 [Writable]
-public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
+public class GetDatastores : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -26,6 +26,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
         set { ignoreSSLErrors = value; }
 
     }
+
     [PropertyClassification(1, "Show Outcome for No Results", new string[] { "Outcomes" })]
     public bool ShowOutcomeforNoResults
     {
@@ -65,7 +66,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(DistributedVirtualPortgroup), "DistributedVirtualPortgroups", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(Datastore), "Datastores", true)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -81,8 +82,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
         Credentials Credentials = data.Data["Credentials"] as Credentials;
         string DatacenterId = data.Data["Datacenter ID"] as string;
 
-
-        List<DistributedVirtualPortgroup> DistributedVirtualPortgroups = new List<DistributedVirtualPortgroup>();
+        List<Datastore> Datastores = new List<Datastore>();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -109,36 +109,49 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
                 searchRoot.Type = "Datacenter";
                 searchRoot.Value = DatacenterId;
             }
-            // Retrieve all Datacenters
-            List<EntityViewBase> distributedVirtualPortgroups = vimClient.FindEntityViews(typeof(VMware.Vim.DistributedVirtualPortgroup), searchRoot, null, null);
-
-            // Disconnect from vSphere server
-            vimClient.Logout();
-            vimClient.Disconnect();
 
 
-            if (distributedVirtualPortgroups != null)
+            // Create a filter that only lists the Storagepods with capacity that is not 0.
+            NameValueCollection searchfilter = new NameValueCollection();
+            searchfilter.Add("Summary.Capacity", "^(?!0$)");
+
+
+            var dataStores = vimClient.FindEntityViews(typeof(VMware.Vim.Datastore), searchRoot, searchfilter, null);
+
+            if (dataStores != null)
             {
-                foreach (EntityViewBase evb in distributedVirtualPortgroups)
+                foreach (VMware.Vim.Datastore evb in dataStores)
                 {
-                    VMware.Vim.DistributedVirtualPortgroup distributedVirtualPortgroup = evb as VMware.Vim.DistributedVirtualPortgroup;
-                    if (distributedVirtualPortgroup != null)
+                    VMware.Vim.Datastore store = evb as VMware.Vim.Datastore;
+                    if (store != null)
                     {
-                        DistributedVirtualPortgroup NewDistributedVirtualPortgroup = new DistributedVirtualPortgroup();
-                        NewDistributedVirtualPortgroup.Name = distributedVirtualPortgroup.Name;
-                        NewDistributedVirtualPortgroup.ID = distributedVirtualPortgroup.MoRef.Value;
-                        DistributedVirtualPortgroups.Add(NewDistributedVirtualPortgroup);
-                    }
+
+                            Datastore NewDatastore = new Datastore();
+                            NewDatastore.Name = store.Name;
+                            NewDatastore.ID = store.MoRef.Value;
+                            NewDatastore.Capacity = store.Summary.Capacity;
+                            NewDatastore.FreeSpace = store.Summary.FreeSpace;
+                            Datastores.Add(NewDatastore);
+                            Console.WriteLine(store.Name);
+                     }
                 }
             }
             else
             {
                 if (ShowOutcomeforNoResults)
                 {
+                    // Disconnect from vSphere server
+                    vimClient.Logout();
+                    vimClient.Disconnect();
                     return new ResultData("No Results");
                 }
+                //Console.WriteLine("No storage pods found.");
             }
 
+            
+            // Disconnect from vSphere server
+            vimClient.Logout();
+            vimClient.Disconnect();
 
         }
         catch (Exception e)
@@ -155,7 +168,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("DistributedVirtualPortgroups", (object)DistributedVirtualPortgroups.ToArray());
+        dictionary.Add("Datastores", (object)Datastores.ToArray());
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 

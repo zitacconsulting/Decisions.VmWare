@@ -6,12 +6,14 @@ using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
 using DecisionsFramework.Design.Flow.Mapping.InputImpl;
+using System;
+using System.Collections.Generic;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Distributed Virtual Portgroup", "Integration", "VmWare", "Network")]
+[AutoRegisterStep("Get VM By Name", "Integration", "VmWare", "VM")]
 [Writable]
-public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
+public class GetVMByName : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -55,6 +57,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "VM Name"));
             return dataDescriptionList.ToArray();
         }
     }
@@ -65,7 +68,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(DistributedVirtualPortgroup), "DistributedVirtualPortgroups", true)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(VM), "Virtual Machine", false)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -80,9 +83,10 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
         string DatacenterId = data.Data["Datacenter ID"] as string;
+        string VmName = data.Data["VM Name"] as string;
 
 
-        List<DistributedVirtualPortgroup> DistributedVirtualPortgroups = new List<DistributedVirtualPortgroup>();
+        VM NewVM = new VM();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -109,27 +113,24 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
                 searchRoot.Type = "Datacenter";
                 searchRoot.Value = DatacenterId;
             }
-            // Retrieve all Datacenters
-            List<EntityViewBase> distributedVirtualPortgroups = vimClient.FindEntityViews(typeof(VMware.Vim.DistributedVirtualPortgroup), searchRoot, null, null);
+
+
+        var filter = new NameValueCollection
+        {
+            {"name", VmName}
+        };
+
+            var vmList = vimClient.FindEntityViews(typeof(VMware.Vim.VirtualMachine), searchRoot, filter, null);
+
 
             // Disconnect from vSphere server
             vimClient.Logout();
             vimClient.Disconnect();
 
-
-            if (distributedVirtualPortgroups != null)
+            if (vmList != null)
             {
-                foreach (EntityViewBase evb in distributedVirtualPortgroups)
-                {
-                    VMware.Vim.DistributedVirtualPortgroup distributedVirtualPortgroup = evb as VMware.Vim.DistributedVirtualPortgroup;
-                    if (distributedVirtualPortgroup != null)
-                    {
-                        DistributedVirtualPortgroup NewDistributedVirtualPortgroup = new DistributedVirtualPortgroup();
-                        NewDistributedVirtualPortgroup.Name = distributedVirtualPortgroup.Name;
-                        NewDistributedVirtualPortgroup.ID = distributedVirtualPortgroup.MoRef.Value;
-                        DistributedVirtualPortgroups.Add(NewDistributedVirtualPortgroup);
-                    }
-                }
+                NewVM = new VM((VMware.Vim.VirtualMachine) vmList[0]);
+                
             }
             else
             {
@@ -138,7 +139,6 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
                     return new ResultData("No Results");
                 }
             }
-
 
         }
         catch (Exception e)
@@ -155,7 +155,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("DistributedVirtualPortgroups", (object)DistributedVirtualPortgroups.ToArray());
+        dictionary.Add("Virtual Machine", (object)NewVM);
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 

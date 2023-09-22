@@ -91,6 +91,11 @@ public class GetDatacenterById : BaseFlowAwareStep, ISyncStep, IDataConsumer, ID
 
 
             VMware.Vim.Datacenter Datacenter = vimClient.GetView(DatacenterMoref, null) as VMware.Vim.Datacenter;
+
+            // Disconnect from vSphere server
+            vimClient.Logout();
+            vimClient.Disconnect();
+
             if (Datacenter != null)
             {
                 NewDc.Name = Datacenter.Name;
@@ -104,10 +109,6 @@ public class GetDatacenterById : BaseFlowAwareStep, ISyncStep, IDataConsumer, ID
                     return new ResultData("No Results");
                 }
             }
-
-            // Disconnect from vSphere server
-            vimClient.Logout();
-            vimClient.Disconnect();
 
         }
         catch (Exception e)

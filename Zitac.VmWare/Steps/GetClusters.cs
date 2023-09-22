@@ -112,6 +112,9 @@ public class GetClusters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
             // Retrieve all Datacenters
             List<EntityViewBase> clusters = vimClient.FindEntityViews(typeof(ClusterComputeResource), searchRoot, null, null);
 
+            // Disconnect from vSphere server
+            vimClient.Logout();
+            vimClient.Disconnect();
 
             if (clusters != null)
             {
@@ -134,10 +137,6 @@ public class GetClusters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                     return new ResultData("No Results");
                 }
             }
-
-            // Disconnect from vSphere server
-            vimClient.Logout();
-            vimClient.Disconnect();
 
         }
         catch (Exception e)

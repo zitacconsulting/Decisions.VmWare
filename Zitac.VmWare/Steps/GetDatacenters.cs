@@ -90,6 +90,9 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             // Retrieve all Datacenters
             List<EntityViewBase> datacenters = vimClient.FindEntityViews(typeof(VMware.Vim.Datacenter), searchRoot, null, null);
 
+            // Disconnect from vSphere server
+            vimClient.Logout();
+            vimClient.Disconnect();
 
             if (datacenters != null)
             {
@@ -112,10 +115,6 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
                     return new ResultData("No Results");
                 }
             }
-
-            // Disconnect from vSphere server
-            vimClient.Logout();
-            vimClient.Disconnect();
 
         }
         catch (Exception e)

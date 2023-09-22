@@ -11,7 +11,7 @@ namespace Zitac.VmWare.Steps;
 
 [AutoRegisterStep("Remove Snapshot", "Integration", "VmWare", "Snapshots")]
 [Writable]
-public class RemoveSnapshot : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer,IDefaultInputMappingStep //, INotifyPropertyChanged
+public class RemoveSnapshot : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep //, INotifyPropertyChanged
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -24,7 +24,7 @@ public class RemoveSnapshot : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
 
     }
 
-        public IInputMapping[] DefaultInputs
+    public IInputMapping[] DefaultInputs
     {
         get
         {
@@ -96,6 +96,8 @@ public class RemoveSnapshot : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
 
             if (TaskResult.Info.State.ToString() == "error")
             {
+                vimClient.Logout();
+                vimClient.Disconnect();
                 throw new Exception("Failed to remove snapshot:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
             }
 

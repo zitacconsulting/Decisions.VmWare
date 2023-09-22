@@ -115,7 +115,8 @@ public class GetFoldersByDatastore : BaseFlowAwareStep, ISyncStep, IDataConsumer
                         Folders.Add(folderFileInfo.Path);
                     }
                 }
-                if (Folders.Count == 0 && ShowOutcomeforNoResults) {
+                if (Folders.Count == 0 && ShowOutcomeforNoResults)
+                {
                     return new ResultData("No Results");
                 }
 
@@ -124,6 +125,9 @@ public class GetFoldersByDatastore : BaseFlowAwareStep, ISyncStep, IDataConsumer
             {
                 if (ShowOutcomeforNoResults)
                 {
+                    // Disconnect from vSphere server
+                    vimClient.Logout();
+                    vimClient.Disconnect();
                     return new ResultData("No Results");
                 }
             }
