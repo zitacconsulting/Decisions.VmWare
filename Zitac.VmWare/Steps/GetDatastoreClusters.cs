@@ -127,7 +127,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
             searchfilter.Add("Summary.Capacity", "^(?!0$)");
 
 
-            var storagePods = vimClient.FindEntityViews(typeof(VMware.Vim.StoragePod), searchRoot, searchfilter, null);
+            var storagePods = vimClient.FindEntityViews(typeof(VMware.Vim.StoragePod), searchRoot, searchfilter, VMwarePropertyLists.DatastoreClusterProperties);
 
             if (storagePods != null)
             {
@@ -146,7 +146,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                         {
                             foreach (var dsRef in pod.ChildEntity)
                             {
-                                VMware.Vim.Datastore datastore = vimClient.GetView(dsRef, null) as VMware.Vim.Datastore;
+                                VMware.Vim.Datastore datastore = vimClient.GetView(dsRef, new string[] {"Host"}) as VMware.Vim.Datastore;
                                 if (datastore != null && datastore.Host != null && datastore.Host.Length > 0)
                                 {
                                     hasAssociatedHosts = true;
@@ -156,11 +156,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                         }
                         if (hasAssociatedHosts)
                         {
-                            DatastoreCluster NewCluster = new DatastoreCluster();
-                            NewCluster.Name = pod.Name;
-                            NewCluster.ID = pod.MoRef.Value;
-                            NewCluster.Capacity = pod.Summary.Capacity;
-                            NewCluster.FreeSpace = pod.Summary.FreeSpace;
+                            DatastoreCluster NewCluster = new DatastoreCluster(pod);
                             StoragePods.Add(NewCluster);
                             Console.WriteLine(pod.Name);
                         }

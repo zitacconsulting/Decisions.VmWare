@@ -14,5 +14,11 @@ public class Network
     [DataMember]
     public string? ID { get; set; }
 
-}
+    public Network(){}
 
+    public Network(VMware.Vim.Network network)
+    {
+                        this.Name = network.Name;
+                        this.ID = network.MoRef.Value;
+    }
+}

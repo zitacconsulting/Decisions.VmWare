@@ -90,7 +90,7 @@ public class GetDatacenterById : BaseFlowAwareStep, ISyncStep, IDataConsumer, ID
             DatacenterMoref.Value = DatacenterId;
 
 
-            VMware.Vim.Datacenter Datacenter = vimClient.GetView(DatacenterMoref, null) as VMware.Vim.Datacenter;
+            VMware.Vim.Datacenter Datacenter = vimClient.GetView(DatacenterMoref, VMwarePropertyLists.DatacenterProperties) as VMware.Vim.Datacenter;
 
             // Disconnect from vSphere server
             vimClient.Logout();
@@ -98,8 +98,7 @@ public class GetDatacenterById : BaseFlowAwareStep, ISyncStep, IDataConsumer, ID
 
             if (Datacenter != null)
             {
-                NewDc.Name = Datacenter.Name;
-                NewDc.ID = Datacenter.MoRef.Value;
+                NewDc = new Datacenter(Datacenter);
                 
             }
             else

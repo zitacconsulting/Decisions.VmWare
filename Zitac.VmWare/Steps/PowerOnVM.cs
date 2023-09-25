@@ -8,21 +8,21 @@ using DecisionsFramework.Design.Flow.CoreSteps;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Reboot VM", "Integration", "VmWare", "VM")]
+[AutoRegisterStep("Power On VM", "Integration", "VmWare", "VM")]
 [Writable]
-public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
 {
     [WritableValue]
     private bool ignoreSSLErrors;
 
     [WritableValue]
-    private bool waitForReboot;
+    private bool alreadyRunning;
+
+    [WritableValue]
+    private bool waitForPowerOn;
 
     [WritableValue]
     private bool specifyTimeout;
-
-    [WritableValue]
-    private bool notRunning;
 
     [WritableValue]
     private Int32 maxTimeout;
@@ -35,28 +35,28 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
     }
 
-    [PropertyClassification(0, "Show outcome for 'Not Running'", new string[] { "Settings" })]
-    public bool NotRunning
+    [PropertyClassification(0, "Show outcome for 'Already Running'", new string[] { "Settings" })]
+    public bool AlreadyRunning
     {
-        get { return notRunning; }
-        set { notRunning = value; }
+        get { return alreadyRunning; }
+        set { alreadyRunning = value; }
 
     }
 
-    [PropertyClassification(6, "Wait For Reboot", new string[] { "Settings" })]
-    public bool WaitForReboot
+    [PropertyClassification(6, "Wait For OS Boot", new string[] { "Settings" })]
+    public bool WaitForPowerOn
     {
-        get { return waitForReboot; }
+        get { return waitForPowerOn; }
         set
         {
-            waitForReboot = value;
-            this.OnPropertyChanged(nameof(WaitForReboot));
+            waitForPowerOn = value;
+            this.OnPropertyChanged(nameof(WaitForPowerOn));
             this.OnPropertyChanged("SpecifyTimeout");
 
         }
     }
 
-    [BooleanPropertyHidden("WaitForReboot", false)]
+    [BooleanPropertyHidden("WaitForPowerOn", false)]
     [PropertyClassification(7, "Specify Timeout", new string[] { "Settings" })]
     public bool SpecifyTimeout
     {
@@ -72,7 +72,7 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
 
     [BooleanPropertyHidden("SpecifyTimeout", false)]
-    [BooleanPropertyHidden("WaitForReboot", false)]
+    [BooleanPropertyHidden("WaitForPowerOn", false)]
     [PropertyClassification(8, "Timeout In Sec", new string[] { "Settings" })]
     public Int32 MaxTimeout
     {
@@ -103,13 +103,13 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
             outcomeScenarioDataList.Add(new OutcomeScenarioData("Done"));
-            if (WaitForReboot && SpecifyTimeout)
+            if (WaitForPowerOn && SpecifyTimeout)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("Timeout"));
             }
-            if (NotRunning)
+            if (AlreadyRunning)
             {
-                outcomeScenarioDataList.Add(new OutcomeScenarioData("Not Running"));
+                outcomeScenarioDataList.Add(new OutcomeScenarioData("Already Running"));
             }
             outcomeScenarioDataList.Add(new OutcomeScenarioData("Error", new DataDescription(typeof(string), "Error Message")));
             return outcomeScenarioDataList.ToArray();
@@ -138,37 +138,36 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmMor.Value = VmID;
 
             VirtualMachine vm = new VirtualMachine(vimClient, vmMor);
-            if (WaitForReboot == true && vm.Guest.ToolsVersionStatus == "guestToolsNotInstalled")
+            if (WaitForPowerOn == true && vm.Guest.ToolsVersionStatus == "guestToolsNotInstalled")
             {
                 return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
                 {
                 {
                     "Error Message",
-                    (object) "VMware Tools need to be installed on guest to allow 'Wait for Reboot'"
+                    (object) "VMware Tools need to be installed on guest to allow 'Wait for OS Boot'"
                 }
                 });
             }
-            if (vm.Runtime.PowerState.ToString() != "poweredOn")
+            if (vm.Runtime.PowerState.ToString() == "poweredOn")
             {
-                if (NotRunning)
+                if (AlreadyRunning)
                 {
-                    return new ResultData("Not Running");
+                    return new ResultData("Already Running");
                 }
                 return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
                 {
                 {
                     "Error Message",
-                    (object) "Can only restart VM's in a running state"
+                    (object) "VM Already in a running state"
                 }
                 });
             }
-            vm.RebootGuest();
-            if (WaitForReboot == true)
+            vm.PowerOnVM_Task(null);
+            if (WaitForPowerOn == true)
             {
-                bool isRebooted = false;
-                bool hasShutDown = false;
+                bool isBooted = false;
                 int timeout = 5;
-                while (!isRebooted)
+                while (!isBooted)
                 {
                     System.Threading.Thread.Sleep(5000);  // wait for 5 seconds before next poll
 
@@ -177,19 +176,13 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                     Console.WriteLine(vm.Guest.GuestState);
                     Console.WriteLine(vm.Guest.ToolsStatus);
                     Console.WriteLine(vm.Guest.ToolsRunningStatus);
-                    Console.WriteLine(hasShutDown);
                     Console.WriteLine(timeout);
 
-                    // First check that the VM actually has been turned off
-                    if (vm.Guest.ToolsRunningStatus == "guestToolsNotRunning")
-                    {
-                        hasShutDown = true;
-                    }
 
                     // Check the guest OS status and tools status
-                    if (vm.Guest.GuestState == "running" && vm.Guest.ToolsRunningStatus == "guestToolsRunning" && hasShutDown == true)
+                    if (vm.Guest.GuestState == "running" && vm.Guest.ToolsRunningStatus == "guestToolsRunning")
                     {
-                        isRebooted = true;
+                        isBooted = true;
                     }
                     timeout = timeout + 5;
                     if (specifyTimeout && timeout >= maxTimeout)

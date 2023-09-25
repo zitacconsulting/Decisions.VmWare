@@ -110,7 +110,7 @@ public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                 searchRoot.Value = DatacenterId;
             }
             // Retrieve all Datacenters
-            List<EntityViewBase> networks = vimClient.FindEntityViews(typeof(VMware.Vim.Network), searchRoot, null, null);
+            List<EntityViewBase> networks = vimClient.FindEntityViews(typeof(VMware.Vim.Network), searchRoot, null, VMwarePropertyLists.NetworkProperties);
 
 
             // Disconnect from vSphere server
@@ -124,9 +124,7 @@ public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                     VMware.Vim.Network network = evb as VMware.Vim.Network;
                     if (network != null)
                     {
-                        Network NewNetwork = new Network();
-                        NewNetwork.Name = network.Name;
-                        NewNetwork.ID = network.MoRef.Value;
+                        Network NewNetwork = new Network(network);
                         Networks.Add(NewNetwork);
                     }
                 }

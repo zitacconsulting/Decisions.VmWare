@@ -88,7 +88,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
             ManagedObjectReference searchRoot = serviceContent.RootFolder;
 
             // Retrieve all Datacenters
-            List<EntityViewBase> datacenters = vimClient.FindEntityViews(typeof(VMware.Vim.Datacenter), searchRoot, null, null);
+            List<EntityViewBase> datacenters = vimClient.FindEntityViews(typeof(VMware.Vim.Datacenter), searchRoot, null, VMwarePropertyLists.DatacenterProperties);
 
             // Disconnect from vSphere server
             vimClient.Logout();
@@ -101,9 +101,7 @@ public class GetDatacenters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IData
                     VMware.Vim.Datacenter dc = evb as VMware.Vim.Datacenter;
                     if (dc != null)
                     {
-                        Datacenter NewDc = new Datacenter();
-                        NewDc.Name = dc.Name;
-                        NewDc.ID = dc.MoRef.Value;
+                        Datacenter NewDc = new Datacenter(dc);
                         Datacenters.Add(NewDc);
                     }
                 }

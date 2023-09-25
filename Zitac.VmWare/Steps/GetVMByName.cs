@@ -120,7 +120,7 @@ public class GetVMByName : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
             {"name", VmName}
         };
 
-            var vmList = vimClient.FindEntityViews(typeof(VMware.Vim.VirtualMachine), searchRoot, filter, null);
+            var vmList = vimClient.FindEntityViews(typeof(VMware.Vim.VirtualMachine), searchRoot, filter, VMwarePropertyLists.VirtualMachineProperties);
 
 
             // Disconnect from vSphere server

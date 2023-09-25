@@ -20,5 +20,15 @@ public class DatastoreCluster
     [DataMember]
     public long FreeSpace { get; set; }
 
+    public DatastoreCluster() { }
+
+    public DatastoreCluster(VMware.Vim.StoragePod pod)
+    {
+
+        this.Name = pod.Name;
+        this.ID = pod.MoRef.Value;
+        this.Capacity = pod.Summary.Capacity;
+        this.FreeSpace = pod.Summary.FreeSpace;
+    }
 }
 

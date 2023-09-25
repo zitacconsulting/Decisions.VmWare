@@ -116,7 +116,7 @@ public class GetDatastores : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
             searchfilter.Add("Summary.Capacity", "^(?!0$)");
 
 
-            var dataStores = vimClient.FindEntityViews(typeof(VMware.Vim.Datastore), searchRoot, searchfilter, null);
+            var dataStores = vimClient.FindEntityViews(typeof(VMware.Vim.Datastore), searchRoot, searchfilter, VMwarePropertyLists.DatastoreProperties);
 
             if (dataStores != null)
             {
@@ -126,11 +126,7 @@ public class GetDatastores : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
                     if (store != null)
                     {
 
-                            Datastore NewDatastore = new Datastore();
-                            NewDatastore.Name = store.Name;
-                            NewDatastore.ID = store.MoRef.Value;
-                            NewDatastore.Capacity = store.Summary.Capacity;
-                            NewDatastore.FreeSpace = store.Summary.FreeSpace;
+                            Datastore NewDatastore = new Datastore(store);
                             Datastores.Add(NewDatastore);
                             Console.WriteLine(store.Name);
                      }

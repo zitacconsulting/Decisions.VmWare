@@ -250,7 +250,7 @@ Console.WriteLine("OStype = " + OSType.ToString());
 
             if (TaskResult.Info.State == TaskInfoState.success)
             {
-                VirtualMachine vm = (VirtualMachine)vimClient.GetView(TaskResult.Info.Entity, null);
+                VirtualMachine vm = (VirtualMachine)vimClient.GetView(TaskResult.Info.Entity, VMwarePropertyLists.VirtualMachineProperties);
                 NewVM = new VM(vm);
             }
             else

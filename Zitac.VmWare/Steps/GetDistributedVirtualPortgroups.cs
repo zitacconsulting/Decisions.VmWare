@@ -110,7 +110,7 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
                 searchRoot.Value = DatacenterId;
             }
             // Retrieve all Datacenters
-            List<EntityViewBase> distributedVirtualPortgroups = vimClient.FindEntityViews(typeof(VMware.Vim.DistributedVirtualPortgroup), searchRoot, null, null);
+            List<EntityViewBase> distributedVirtualPortgroups = vimClient.FindEntityViews(typeof(VMware.Vim.DistributedVirtualPortgroup), searchRoot, null, VMwarePropertyLists.DistributedVirtualPortgroupProperties);
 
             // Disconnect from vSphere server
             vimClient.Logout();
@@ -124,9 +124,8 @@ public class GetDistributedVirtualPortgroup : BaseFlowAwareStep, ISyncStep, IDat
                     VMware.Vim.DistributedVirtualPortgroup distributedVirtualPortgroup = evb as VMware.Vim.DistributedVirtualPortgroup;
                     if (distributedVirtualPortgroup != null)
                     {
-                        DistributedVirtualPortgroup NewDistributedVirtualPortgroup = new DistributedVirtualPortgroup();
-                        NewDistributedVirtualPortgroup.Name = distributedVirtualPortgroup.Name;
-                        NewDistributedVirtualPortgroup.ID = distributedVirtualPortgroup.MoRef.Value;
+                        DistributedVirtualPortgroup NewDistributedVirtualPortgroup = new DistributedVirtualPortgroup(distributedVirtualPortgroup);
+
                         DistributedVirtualPortgroups.Add(NewDistributedVirtualPortgroup);
                     }
                 }

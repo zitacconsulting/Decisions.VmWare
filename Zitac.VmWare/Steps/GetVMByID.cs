@@ -95,7 +95,7 @@ public class GetVMByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
                 vmMor.Value = VmId;
 
     
-            var vm = vimClient.GetView(vmMor, null) as VirtualMachine;
+            var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
 
             // Disconnect from vSphere server
             vimClient.Logout();

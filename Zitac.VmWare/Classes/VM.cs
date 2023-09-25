@@ -16,6 +16,9 @@ public class VM
     public string? ID { get; set; }
 
     [DataMember]
+    public string? PowerState { get; set; }
+
+    [DataMember]
     public string? OS { get; set; }
 
     [DataMember]
@@ -51,6 +54,7 @@ public class VM
     {
         this.Name = machine.Name;
         this.ID = machine.MoRef.Value;
+        this.PowerState = machine.Runtime.PowerState.ToString();
         this.OS = machine.Config.GuestFullName;
         this.Template = machine.Config.Template;
         this.UUID = machine.Config.Uuid;

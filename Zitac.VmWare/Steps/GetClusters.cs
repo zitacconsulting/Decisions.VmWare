@@ -110,7 +110,7 @@ public class GetClusters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                 searchRoot.Value = DatacenterId;
             }
             // Retrieve all Datacenters
-            List<EntityViewBase> clusters = vimClient.FindEntityViews(typeof(ClusterComputeResource), searchRoot, null, null);
+            List<EntityViewBase> clusters = vimClient.FindEntityViews(typeof(ClusterComputeResource), searchRoot, null, VMwarePropertyLists.ClusterProperties);
 
             // Disconnect from vSphere server
             vimClient.Logout();
@@ -123,9 +123,7 @@ public class GetClusters : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                     ClusterComputeResource cluster = evb as ClusterComputeResource;
                     if (cluster != null)
                     {
-                        Cluster NewCluster = new Cluster();
-                        NewCluster.Name = cluster.Name;
-                        NewCluster.ID = cluster.MoRef.Value;
+                        Cluster NewCluster = new Cluster(cluster);
                         Clusters.Add(NewCluster);
                     }
                 }

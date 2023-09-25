@@ -9,9 +9,9 @@ using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Get Folder By ID", "Integration", "VmWare", "Folder")]
+[AutoRegisterStep("Get All VMs", "Integration", "VmWare", "VM")]
 [Writable]
-public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer
+public class GetAllVMs : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
 {
     [WritableValue]
     private bool ignoreSSLErrors;
@@ -37,7 +37,15 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
         }
 
     }
-
+    public IInputMapping[] DefaultInputs
+    {
+        get
+        {
+            IInputMapping[] inputMappingArray = new IInputMapping[1];
+            inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Datacenter ID" };
+            return inputMappingArray;
+        }
+    }
     public DataDescription[] InputData
     {
         get
@@ -47,7 +55,6 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Folder ID"));
             return dataDescriptionList.ToArray();
         }
     }
@@ -58,7 +65,7 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(FolderWithPath), "Folder", false)));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(VM), "VMs", true)));
             if (ShowOutcomeforNoResults)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("No Results"));
@@ -73,10 +80,9 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
         string DatacenterId = data.Data["Datacenter ID"] as string;
-        string FolderId = data.Data["Folder ID"] as string;
 
 
-        FolderWithPath Folder = new FolderWithPath();
+        List<VM> VMs = new List<VM>();
 
         // Connect to vSphere server
         var vimClient = new VimClientImpl();
@@ -89,48 +95,46 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            ManagedObjectReference DatacenterMoref = new ManagedObjectReference();
-            DatacenterMoref.Type = "Datacenter";
-            DatacenterMoref.Value = DatacenterId;
+            ManagedObjectReference searchRoot = new ManagedObjectReference();
 
-
-            VMware.Vim.Datacenter Datacenter = vimClient.GetView(DatacenterMoref, new string[] {"VmFolder"}) as VMware.Vim.Datacenter;
-            if (Datacenter != null)
+            if (String.IsNullOrEmpty(DatacenterId))
             {
-                // Get folder path
-                FolderWithPath folder = GetFolder(vimClient, Datacenter.VmFolder, FolderId);
+                // Retrieve ServiceContent
+                ServiceContent serviceContent = vimClient.ServiceContent;
+                searchRoot = serviceContent.RootFolder;
 
-                // Print the folder path
-                if (folder != null)
+            }
+            else
+            {
+                searchRoot.Type = "Datacenter";
+                searchRoot.Value = DatacenterId;
+            }
+            // Retrieve all Datacenters
+            List<EntityViewBase> vms = vimClient.FindEntityViews(typeof(VMware.Vim.VirtualMachine), searchRoot, null, VMwarePropertyLists.VirtualMachineProperties);
+
+            // Disconnect from vSphere server
+            vimClient.Logout();
+            vimClient.Disconnect();
+
+            if (vms != null)
+            {
+                foreach (EntityViewBase evb in vms)
                 {
-                    Folder = folder;
-                }
-                else
-                {
-                    if (ShowOutcomeforNoResults)
+                    VMware.Vim.VirtualMachine vm = evb as VMware.Vim.VirtualMachine;
+                    if (vm != null)
                     {
-                        // Disconnect from vSphere server
-                        vimClient.Logout();
-                        vimClient.Disconnect();
-                        return new ResultData("No Results");
+                        VM NewVm = new VM(vm);
+                        VMs.Add(NewVm);
                     }
                 }
-
             }
             else
             {
                 if (ShowOutcomeforNoResults)
                 {
-                    // Disconnect from vSphere server
-                    vimClient.Logout();
-                    vimClient.Disconnect();
                     return new ResultData("No Results");
                 }
             }
-
-            // Disconnect from vSphere server
-            vimClient.Logout();
-            vimClient.Disconnect();
 
         }
         catch (Exception e)
@@ -147,40 +151,9 @@ public class GetFolderByID : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataP
 
 
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
-        dictionary.Add("Folder", (object)Folder);
+        dictionary.Add("VMs", (object)VMs.ToArray());
         return new ResultData("Done", (IDictionary<string, object>)dictionary);
 
 
-    }
-    static FolderWithPath GetFolder(VimClient vimClient, ManagedObjectReference folderMoRef, string targetFolderId, string currentPath = "")
-    {
-        Folder folder = (Folder)vimClient.GetView(folderMoRef, new string[] { "childEntity" });
-
-        foreach (var childEntity in folder.ChildEntity)
-        {
-            if (childEntity.Type == "Folder")
-            {
-                Folder childFolder = (Folder)vimClient.GetView(childEntity, new string[] { "name" });
-
-                string newPath = string.IsNullOrEmpty(currentPath) ? childFolder.Name : currentPath + "/" + childFolder.Name;
-                FolderWithPath result = new FolderWithPath();
-
-                if (childEntity.Value == targetFolderId)
-                {
-                    result.ID = childFolder.MoRef.Value;
-                    result.Name = childFolder.Name;
-                    result.Path = newPath;
-                    return result;
-                }
-
-                // Recursively search nested folders
-                result = GetFolder(vimClient, childEntity, targetFolderId, newPath);
-                if (result != null)
-                {
-                    return result;
-                }
-            }
-        }
-        return null;
     }
 }
