@@ -12,6 +12,9 @@ public class Network
     public string? Name { get; set; }
 
     [DataMember]
+    public string? Type { get; set; }
+
+    [DataMember]
     public string? ID { get; set; }
 
     public Network(){}
@@ -20,5 +23,12 @@ public class Network
     {
                         this.Name = network.Name;
                         this.ID = network.MoRef.Value;
+                        if(network.GetType().ToString() == "VMware.Vim.DistributedVirtualPortgroup") {
+                            this.Type = "Portgroup";
+                        }
+                        else if(network.GetType().ToString() == "VMware.Vim.Network")
+                        {
+                            this.Type = "Network";
+                        }
     }
 }

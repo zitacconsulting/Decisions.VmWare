@@ -146,7 +146,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                         {
                             foreach (var dsRef in pod.ChildEntity)
                             {
-                                VMware.Vim.Datastore datastore = vimClient.GetView(dsRef, new string[] {"Host"}) as VMware.Vim.Datastore;
+                                VMware.Vim.Datastore datastore = vimClient.GetView(dsRef, null) as VMware.Vim.Datastore;
                                 if (datastore != null && datastore.Host != null && datastore.Host.Length > 0)
                                 {
                                     hasAssociatedHosts = true;

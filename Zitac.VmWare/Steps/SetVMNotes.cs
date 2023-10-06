@@ -98,6 +98,14 @@ public class SetVMNotes : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProd
 
             var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
 
+            if (vm == null)
+            {
+                vimClient.Logout();
+                vimClient.Disconnect();
+                throw new Exception("Failed to add Find VM with ID:" + VmId);
+            }
+
+
             // Prepare the VirtualMachineConfigSpec
             var configSpec = new VirtualMachineConfigSpec
             {
@@ -119,7 +127,7 @@ public class SetVMNotes : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProd
             {
                 vimClient.Logout();
                 vimClient.Disconnect();
-                throw new Exception("Failed to revert snapshot:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
+                throw new Exception("Failed to add Note:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
             }
 
             // Disconnect from vSphere server

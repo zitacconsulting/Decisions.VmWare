@@ -27,12 +27,15 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
     {
         get
         {
-            IInputMapping[] inputMappingArray = new IInputMapping[5];
+            IInputMapping[] inputMappingArray = new IInputMapping[8];
             inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Datacenter ID" };
             inputMappingArray[1] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Folder ID" };
             inputMappingArray[2] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "ISO File" };
             inputMappingArray[3] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Network ID" };
-            inputMappingArray[4] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Network ID" };
+            inputMappingArray[4] = (IInputMapping)new ConstantInputMapping() { InputDataName = "OS Type" };
+            inputMappingArray[5] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Firmware" };
+            inputMappingArray[6] = (IInputMapping)new ConstantInputMapping() { InputDataName = "SCSI Controller" };
+            inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Network Adapter Type" };
             return inputMappingArray;
         }
     }
@@ -46,13 +49,17 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "VM Name"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(GuestOS)), "OS Type"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Firmware)), "Firmware"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Secure Boot"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Folder ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datastore ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "ISO File"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Network ID"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(NetworkAdapterType)), "Network Adapter Type"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "CPU"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Memory (GB)"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SCSIController)), "SCSI Controller"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Disk Size (GB)"));
             return dataDescriptionList.ToArray();
         }
@@ -80,10 +87,14 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         string? DatastoreId = data.Data["Datastore ID"] as string;
         string? ISOFile = data.Data["ISO File"] as string;
         string? NetworkId = data.Data["Network ID"] as string;
+        NetworkAdapterType NetworkAdapterType = (NetworkAdapterType)data.Data["Network Adapter Type"];
         GuestOS OSType = (GuestOS)data.Data["OS Type"];
+        Firmware Firmware = (Firmware)data.Data["Firmware"];
+        bool SecureBoot = data.Data["Secure Boot"] as bool? ?? false;
         int? Cpu = data.Data["CPU"] as int?;
         int? Memory = data.Data["Memory (GB)"] as int?;
         int? DiskSize = data.Data["Disk Size (GB)"] as int?;
+        SCSIController SCSIController = (SCSIController)data.Data["SCSI Controller"];
 
 
         FolderWithPath Folder = new FolderWithPath();
@@ -145,23 +156,47 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             List<VirtualDeviceConfigSpec> ConfigSpecs = new List<VirtualDeviceConfigSpec>();
 
             // Build VM
-Console.WriteLine("OStype = " + OSType.ToString());
+            Console.WriteLine("OStype = " + OSType.ToString());
             var vmConfigSpec = new VirtualMachineConfigSpec();
             vmConfigSpec.Name = VmName;
-            vmConfigSpec.MemoryMB =  Memory * 1024;
+            vmConfigSpec.MemoryMB = Memory * 1024;
             vmConfigSpec.NumCPUs = Cpu;
             vmConfigSpec.GuestId = OSType.ToString();
             vmConfigSpec.Files = new VirtualMachineFileInfo();
             vmConfigSpec.Files.VmPathName = "[" + Datastore.Name + "]";
 
+            VirtualMachineBootOptions bootOptions = new VirtualMachineBootOptions();
+            bootOptions.EfiSecureBootEnabled = SecureBoot; // Enable/Disable EFI Secure Boot
+            vmConfigSpec.BootOptions = bootOptions;
+
+            // Define Firmware Type
+            vmConfigSpec.Firmware = Firmware.ToString(); ; // Can be "efi" or "bios"
+
+
             if (DiskSize.HasValue)
             {
-                // SCSI Controller settings
-                VirtualLsiLogicController scsiController = new VirtualLsiLogicController();
+                VirtualSCSIController scsiController = null;
+                switch (SCSIController.ToString())
+                {
+                    case "Paravirtual":
+                        scsiController = new ParaVirtualSCSIController();
+                        break;
+                    case "LSILogic":
+                        scsiController = new VirtualLsiLogicController();
+                        break;
+                    case "LSILogicSAS":
+                        scsiController = new VirtualLsiLogicSASController();
+                        break;
+                    case "VirtualBus":
+                        scsiController = new VirtualBusLogicController();
+                        break;
+                    default:
+                        throw new Exception("No SCSI Type selected");
+                }
+
                 scsiController.Key = 1000;
                 scsiController.BusNumber = 0;
                 scsiController.SharedBus = VirtualSCSISharing.noSharing;
-
                 VirtualDeviceConfigSpec scsiControllerSpec = new VirtualDeviceConfigSpec();
                 scsiControllerSpec.Operation = VirtualDeviceConfigSpecOperation.add;
                 scsiControllerSpec.Device = scsiController;
@@ -217,7 +252,32 @@ Console.WriteLine("OStype = " + OSType.ToString());
                 nicBacking.DeviceName = Network.Name;  // Replace with the name of your network.
 
                 // Create the virtual NIC device.
-                VirtualVmxnet3 nic = new VirtualVmxnet3();
+                VirtualEthernetCard nic = new VirtualVmxnet3();
+                switch (NetworkAdapterType)
+                {
+                    case NetworkAdapterType.E1000:
+                        nic = new VirtualE1000();
+                        break;
+                    case NetworkAdapterType.E1000e:
+                        nic = new VirtualE1000e();
+                        break;
+                    case NetworkAdapterType.VMXNET:
+                        nic = new VirtualVmxnet();
+                        break;
+                    case NetworkAdapterType.VMXNET3:
+                        nic = new VirtualVmxnet3();
+                        break;
+                    case NetworkAdapterType.SriovEthernetCard:
+                        nic = new VirtualSriovEthernetCard();
+                        break;
+                    case NetworkAdapterType.Vmxnet3Vrdma:
+                        nic = new VirtualVmxnet3Vrdma();
+                        break;
+                    // VMXNET2 is typically chosen automatically by vSphere and thus not selectable manually
+                    default:
+                        throw new Exception("No Network Adapter Type selected");
+                }
+
                 nic.Backing = nicBacking;
                 nic.Key = 2;  // Usually set to 0 for devices you are adding.
                 nic.DeviceInfo = new Description();

@@ -27,6 +27,18 @@ public class VmCDROM
     [DataMember]
     public bool? StartConnected { get; set; }
 
+    [DataMember]
+    public int? Key { get; set; }
+
+    [DataMember]
+    public int? UnitNumber { get; set; }
+
+    [DataMember]
+    public int? ControllerKey { get; set; }
+
+    [DataMember]
+    public int? ControllerLocation { get; set; }
+
     public VmCDROM() { }
 
     public VmCDROM(VirtualCdrom cd)
@@ -48,6 +60,10 @@ public class VmCDROM
         }
         this.Connected = cd.Connectable.Connected;
         this.StartConnected = cd.Connectable.StartConnected;
+        this.Key = cd.Key;
+        this.UnitNumber = cd.UnitNumber;
+        this.ControllerKey = cd.ControllerKey;
+        this.ControllerLocation = cd.UnitNumber;
     }
 
 }

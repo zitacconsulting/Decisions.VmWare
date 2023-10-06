@@ -137,7 +137,17 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             vmMor.Type = "VirtualMachine";
             vmMor.Value = VmID;
 
-            VirtualMachine vm = new VirtualMachine(vimClient, vmMor);
+            var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
+
+            if (vm == null)
+            {
+                vimClient.Logout();
+                vimClient.Disconnect();
+                throw new Exception("Failed to add Find VM with ID:" + VmID);
+            }
+
+
+
             if (WaitForPowerOn == true && vm.Guest.ToolsVersionStatus == "guestToolsNotInstalled")
             {
                 return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
@@ -162,7 +172,21 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
                 }
                 });
             }
-            vm.PowerOnVM_Task(null);
+            ManagedObjectReference taskMor = vm.PowerOnVM_Task(null);
+
+            VMware.Vim.Task TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
+            while ((TaskResult.Info.State.ToString() == "running") || (TaskResult.Info.State.ToString() == "queued"))
+            {
+                //Console.WriteLine(TaskResult.Info.State);
+                System.Threading.Thread.Sleep(2000);
+                TaskResult.UpdateViewData();
+            }
+
+            if (TaskResult.Info.State.ToString() == "error")
+            {
+                throw new Exception("Failed to power on VM:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
+            }
+
             if (WaitForPowerOn == true)
             {
                 bool isBooted = false;
@@ -192,6 +216,9 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
                         return new ResultData("Timeout");
                     }
                 }
+            }
+            else {
+
             }
 
             vimClient.Logout();

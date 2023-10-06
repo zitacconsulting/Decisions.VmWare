@@ -26,9 +26,10 @@ public static class VMwarePropertyLists
     public static readonly string[] DatastoreClusterProperties = new string[]
     {
         "Name",
-        "Host",
+        //"Host",
         "Summary.Capacity",
-        "Summary.FreeSpace"
+        "Summary.FreeSpace",
+        "ChildEntity"
 
     };
         public static readonly string[] DatastoreProperties = new string[]

@@ -31,7 +31,7 @@ public class VmDisk
     public string? DatastoreID { get; set; }
 
     [DataMember]
-    public int? Controller { get; set; }
+    public int? ControllerKey { get; set; }
 
     [DataMember]
     public int? ControllerLocation { get; set; }
@@ -47,7 +47,7 @@ public class VmDisk
         this.Name = disk.DeviceInfo.Label;
         this.CapacityInBytes = disk.CapacityInBytes;
         this.Key = disk.Key;
-        this.Controller = disk.ControllerKey;
+        this.ControllerKey = disk.ControllerKey;
         this.ControllerLocation = disk.UnitNumber;
 
         if (disk.Backing is VirtualDiskFlatVer2BackingInfo diskBacking)
