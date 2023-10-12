@@ -137,7 +137,7 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmMor.Type = "VirtualMachine";
             vmMor.Value = VmID;
 
-            VirtualMachine vm = new VirtualMachine(vimClient, vmMor);
+            var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
             if (WaitForReboot == true && vm.Guest.ToolsVersionStatus == "guestToolsNotInstalled")
             {
                 return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
