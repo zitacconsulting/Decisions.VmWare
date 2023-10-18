@@ -6,21 +6,36 @@ using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
 using DecisionsFramework.Design.Flow.Mapping.InputImpl;
+using System.ComponentModel;
 
 namespace Zitac.VmWare.Steps;
 
 [AutoRegisterStep("Create VM", "Integration", "VmWare", "VM")]
 [Writable]
-public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, IDefaultInputMappingStep
+public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer, INotifyPropertyChanged, IDefaultInputMappingStep
 {
     [WritableValue]
     private bool ignoreSSLErrors;
+
+    [WritableValue]
+    private bool storageDRS;
 
     [PropertyClassification(0, "Ignore SSL Errors", new string[] { "Settings" })]
     public bool IgnoreSSLErrors
     {
         get { return ignoreSSLErrors; }
         set { ignoreSSLErrors = value; }
+
+    }
+    [PropertyClassification(0, "Use Storage DRS", new string[] { "Settings" })]
+    public bool StorageDRS
+    {
+        get { return storageDRS; }
+        set
+        {
+            storageDRS = value;
+            this.OnPropertyChanged("InputData");
+        }
 
     }
     public IInputMapping[] DefaultInputs
@@ -61,6 +76,10 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Memory (GB)"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SCSIController)), "SCSI Controller"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Disk Size (GB)"));
+            if (storageDRS)
+            {
+                dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Cluster ID"));
+            }
             return dataDescriptionList.ToArray();
         }
     }
@@ -95,6 +114,8 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         int? Memory = data.Data["Memory (GB)"] as int?;
         int? DiskSize = data.Data["Disk Size (GB)"] as int?;
         SCSIController SCSIController = (SCSIController)data.Data["SCSI Controller"];
+        string? ClusterId = data.Data["Cluster ID"] as string;
+
 
 
         FolderWithPath Folder = new FolderWithPath();
@@ -148,10 +169,26 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
             var resourcePool = (ResourcePool)vimClient.FindEntityView(typeof(ResourcePool), null, new NameValueCollection { { "name", "Resources" } }, null);
 
+            String DatastoreName = null;
+
             ManagedObjectReference datastoreMor = new ManagedObjectReference();
-            datastoreMor.Type = "Datastore";
+            if (storageDRS) { datastoreMor.Type = "StoragePod"; }
+            else { datastoreMor.Type = "Datastore"; }
+
             datastoreMor.Value = DatastoreId;
-            VMware.Vim.Datastore? Datastore = vimClient.GetView(datastoreMor, null) as VMware.Vim.Datastore;
+            var DatastoreEntity = vimClient.GetView(datastoreMor, null);
+
+            if (storageDRS)
+            {
+                var StoragePod = DatastoreEntity as VMware.Vim.StoragePod;
+                DatastoreName = StoragePod.Name;
+            }
+            else
+            {
+                var DataStore = DatastoreEntity as VMware.Vim.Datastore;
+                DatastoreName = DataStore.Name;
+            }
+
 
             List<VirtualDeviceConfigSpec> ConfigSpecs = new List<VirtualDeviceConfigSpec>();
 
@@ -163,7 +200,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmConfigSpec.NumCPUs = Cpu;
             vmConfigSpec.GuestId = OSType.ToString();
             vmConfigSpec.Files = new VirtualMachineFileInfo();
-            vmConfigSpec.Files.VmPathName = "[" + Datastore.Name + "]";
+            vmConfigSpec.Files.VmPathName = "[" + DatastoreName + "]";
 
             VirtualMachineBootOptions bootOptions = new VirtualMachineBootOptions();
             bootOptions.EfiSecureBootEnabled = SecureBoot; // Enable/Disable EFI Secure Boot
@@ -172,6 +209,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             // Define Firmware Type
             vmConfigSpec.Firmware = Firmware.ToString(); ; // Can be "efi" or "bios"
 
+            VirtualDiskFlatVer2BackingInfo diskBackingInfo = new VirtualDiskFlatVer2BackingInfo();
 
             if (DiskSize.HasValue)
             {
@@ -203,9 +241,12 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 ConfigSpecs.Add(scsiControllerSpec);
 
                 // Disk settings
-                VirtualDiskFlatVer2BackingInfo diskBackingInfo = new VirtualDiskFlatVer2BackingInfo();
+
                 // Assuming the disk should be created in the same folder as the VM, and it should use the VM's name
-                diskBackingInfo.Datastore = Datastore.MoRef;
+                if (!storageDRS)
+                {
+                    diskBackingInfo.Datastore = datastoreMor;
+                }
                 diskBackingInfo.FileName = "";  // Empty means it will be in the same folder as the VM
                 diskBackingInfo.DiskMode = "persistent";  // The disk will not discard changes upon VM power-off
 
@@ -294,9 +335,48 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmConfigSpec.DeviceChange = ConfigSpecs.ToArray();
 
 
+            ManagedObjectReference task = new ManagedObjectReference();
             // Create the VM
 
-            var task = folder.CreateVM_Task(vmConfigSpec, resourcePool.MoRef, host.MoRef);
+            if (storageDRS)
+            {
+                //Create PodDiskLocator
+                VMware.Vim.PodDiskLocator pdl = new PodDiskLocator();
+                pdl = new PodDiskLocator();
+                pdl.DiskId = -1;
+                pdl.DiskBackingInfo = diskBackingInfo;
+
+                //Create Pod Config
+                VMware.Vim.VmPodConfigForPlacement vpcfp = new VmPodConfigForPlacement();
+                vpcfp = new VmPodConfigForPlacement();
+                vpcfp.StoragePod = datastoreMor;
+                vpcfp.Disk = new[] { pdl };
+
+
+                //Create Storage DRS Pod Selection Spec
+                VMware.Vim.StorageDrsPodSelectionSpec sdps = new StorageDrsPodSelectionSpec();
+                sdps.StoragePod = datastoreMor;
+                sdps.InitialVmConfig = new[] { vpcfp };
+
+                // Create Storage Placement spec
+                VMware.Vim.StoragePlacementSpec spconfig = new StoragePlacementSpec();
+                spconfig.Type = "create";
+                spconfig.ConfigSpec = vmConfigSpec;
+                spconfig.Folder = folder.MoRef;
+                spconfig.ResourcePool = resourcePool.MoRef;
+                spconfig.PodSelectionSpec = sdps;
+
+
+                StorageResourceManager srm = (StorageResourceManager)vimClient.GetView(vimClient.ServiceContent.StorageResourceManager, null);
+                var recommendations = srm.RecommendDatastores(spconfig);
+
+                task = srm.ApplyStorageDrsRecommendation_Task(new[] { recommendations.Recommendations.FirstOrDefault().Key });
+
+            }
+            else
+            {
+                task = folder.CreateVM_Task(vmConfigSpec, resourcePool.MoRef, host.MoRef);
+            }
             var taskId = task.Value;
             Console.WriteLine($"Created task with ID: {taskId}");
 
@@ -310,8 +390,18 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
             if (TaskResult.Info.State == TaskInfoState.success)
             {
-                VirtualMachine vm = (VirtualMachine)vimClient.GetView(TaskResult.Info.Entity, VMwarePropertyLists.VirtualMachineProperties);
-                NewVM = new VM(vm);
+                if (storageDRS)
+                {
+                    ApplyStorageRecommendationResult AsrResult = (ApplyStorageRecommendationResult)TaskResult.Info.Result;
+
+                    VirtualMachine vm = (VirtualMachine)vimClient.GetView(AsrResult.Vm, null);
+                    NewVM = new VM(vm);
+                }
+                else
+                {
+                    VirtualMachine vm = (VirtualMachine)vimClient.GetView(TaskResult.Info.Entity, VMwarePropertyLists.VirtualMachineProperties);
+                    NewVM = new VM(vm);
+                }
             }
             else
             {
