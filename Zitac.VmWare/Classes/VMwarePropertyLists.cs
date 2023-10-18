@@ -4,6 +4,7 @@ public static class VMwarePropertyLists
     public static readonly string[] VirtualMachineProperties = new string[]
     {
         "Name",
+        "Config.Annotation",
         "Config.Template",
         "Config.Uuid",
         "Config.Version",

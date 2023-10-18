@@ -11,6 +11,9 @@ public class VM
 
     [DataMember]
     public string? Name { get; set; }
+    
+    [DataMember]
+    public string? Notes { get; set; }
 
     [DataMember]
     public string? ID { get; set; }
@@ -53,6 +56,7 @@ public class VM
     public VM(VirtualMachine machine)
     {
         this.Name = machine.Name;
+        this.Notes = machine.Config.Annotation;
         this.ID = machine.MoRef.Value;
         this.PowerState = machine.Runtime.PowerState.ToString();
         this.OS = machine.Config.GuestFullName;
