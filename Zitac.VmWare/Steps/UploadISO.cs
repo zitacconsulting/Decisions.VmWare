@@ -43,9 +43,7 @@ public class UploadISO : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datastore ID"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Filename"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Folder"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "File Path"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(byte)), "File Content", true, false, false));
 
             return dataDescriptionList.ToArray();
@@ -69,9 +67,7 @@ public class UploadISO : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
         string? Hostname = data.Data["Hostname"] as string;
         Credentials? Credentials = data.Data["Credentials"] as Credentials;
         string? DatacenterId = data.Data["Datacenter ID"] as string;
-        string? DatastoreId = data.Data["Datastore ID"] as string;
-        string? Folder = data.Data["Folder"] as string;
-        string? Filename = data.Data["Filename"] as string;
+        string? FilePath = data.Data["File Path"] as string;
         byte[]? FileContent = data.Data["File Content"] as byte[];
 
         // Connect to vSphere server
@@ -85,16 +81,21 @@ public class UploadISO : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             vimClient.Connect("https://" + Hostname + "/sdk");
             vimClient.Login(Credentials.Username, Credentials.Password);
 
-            ManagedObjectReference DatastoreMoref = new ManagedObjectReference();
-            DatastoreMoref.Type = "Datastore";
-            DatastoreMoref.Value = DatastoreId;
-            VMware.Vim.Datastore targetDatastore = vimClient.GetView(DatastoreMoref, null) as VMware.Vim.Datastore;
+        if (!FilePath.StartsWith("["))
+        {
+            throw new ArgumentException("Incorrect syntax of file path. File Path should be provided [Datastore] /path/file.iso");
+        }
 
-
-            if (targetDatastore == null)
-            {
-                throw new Exception("Could not find Datastore with id" + DatastoreId);
-            }
+        int startIndex = FilePath.IndexOf('[') + 1;
+        int endIndex = FilePath.IndexOf(']', startIndex);
+        
+        if (startIndex < 1 || endIndex < 0 || endIndex <= startIndex)
+        {
+            throw new ArgumentException("The path does not contain a valid datastore name. File Path should be provided [Datastore] /path/file.iso");
+        }
+        
+        string datastoreName = FilePath.Substring(startIndex, endIndex - startIndex).Trim();
+        string Path = FilePath.Substring(endIndex+1).TrimStart();
 
             ManagedObjectReference DatacenterMoref = new ManagedObjectReference();
             DatacenterMoref.Type = "Datacenter";
@@ -108,7 +109,7 @@ public class UploadISO : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             }
 
 
-            string uploadUrl = "https://" + Hostname + "/folder/" + Folder + "/" + Filename + "?dcPath=" + Datacenter.Name + "&dsName=" + targetDatastore.Name;
+            string uploadUrl = "https://" + Hostname + "/folder/" + Path + "?dcPath=" + Datacenter.Name + "&dsName=" + datastoreName;
             Console.WriteLine(uploadUrl);
 
             UploadData(FileContent, uploadUrl, Credentials.Username, Credentials.Password, ignoreSSLErrors);
