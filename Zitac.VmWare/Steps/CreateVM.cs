@@ -51,6 +51,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             inputMappingArray[5] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Firmware" };
             inputMappingArray[6] = (IInputMapping)new ConstantInputMapping() { InputDataName = "SCSI Controller" };
             inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Network Adapter Type" };
+            inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Synchronize Time with Host", Value = true };
             return inputMappingArray;
         }
     }
@@ -66,6 +67,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(GuestOS)), "OS Type"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Firmware)), "Firmware"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Secure Boot"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Synchronize Time with Host"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Folder ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datastore ID"));
@@ -110,6 +112,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         GuestOS OSType = (GuestOS)data.Data["OS Type"];
         Firmware Firmware = (Firmware)data.Data["Firmware"];
         bool SecureBoot = data.Data["Secure Boot"] as bool? ?? false;
+        bool SyncTime = data.Data["Synchronize Time with Host"] as bool? ?? true;
         int? Cpu = data.Data["CPU"] as int?;
         int? Memory = data.Data["Memory (GB)"] as int?;
         int? DiskSize = data.Data["Disk Size (GB)"] as int?;
@@ -205,6 +208,10 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             VirtualMachineBootOptions bootOptions = new VirtualMachineBootOptions();
             bootOptions.EfiSecureBootEnabled = SecureBoot; // Enable/Disable EFI Secure Boot
             vmConfigSpec.BootOptions = bootOptions;
+  
+            ToolsConfigInfo toolsOptions = new ToolsConfigInfo();
+            toolsOptions.SyncTimeWithHostAllowed = SyncTime; // Enable Disable Sync Time with Host
+            vmConfigSpec.Tools = toolsOptions;
 
             // Define Firmware Type
             vmConfigSpec.Firmware = Firmware.ToString(); ; // Can be "efi" or "bios"
