@@ -33,20 +33,28 @@ public static class VMwarePropertyLists
         "ChildEntity"
 
     };
-        public static readonly string[] DatastoreProperties = new string[]
-    {
+    public static readonly string[] DatastoreProperties = new string[]
+{
         "Name",
         "Host",
         "Summary.Capacity",
         "Summary.FreeSpace"
 
-    };
+};
     public static readonly string[] DistributedVirtualPortgroupProperties = new string[]
     {
-        "Name"
+        "Name",
+        "Config.DistributedVirtualSwitch"
     };
     public static readonly string[] NetworkProperties = new string[]
     {
         "Name"
+    };
+
+    public static readonly string[] VmwareDistributedVirtualSwitchProperties = new string[]
+    {
+        "Name",
+        "Uuid"
+
     };
 }

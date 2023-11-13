@@ -7,6 +7,7 @@ using DecisionsFramework.Design.Flow.Mapping;
 using DecisionsFramework.Design.Flow.CoreSteps;
 using DecisionsFramework.Design.Flow.Mapping.InputImpl;
 using System.ComponentModel;
+using DecisionsFramework.Data.DataTypes;
 
 namespace Zitac.VmWare.Steps;
 
@@ -42,7 +43,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
     {
         get
         {
-            IInputMapping[] inputMappingArray = new IInputMapping[8];
+            IInputMapping[] inputMappingArray = new IInputMapping[11];
             inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Datacenter ID" };
             inputMappingArray[1] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Folder ID" };
             inputMappingArray[2] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "ISO File" };
@@ -52,6 +53,9 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             inputMappingArray[6] = (IInputMapping)new ConstantInputMapping() { InputDataName = "SCSI Controller" };
             inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Network Adapter Type" };
             inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Synchronize Time with Host", Value = true };
+            inputMappingArray[8] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Memory Hot Plug", Value = false };
+            inputMappingArray[9] = (IInputMapping)new ConstantInputMapping() { InputDataName = "CPU Hot Plug", Value = false };
+            inputMappingArray[10] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Extra Config" };
             return inputMappingArray;
         }
     }
@@ -66,8 +70,8 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "VM Name"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(GuestOS)), "OS Type"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Firmware)), "Firmware"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Secure Boot"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Synchronize Time with Host"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Secure Boot"){ Categories = new string[] { "Advanced" } });
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Synchronize Time with Host"){ Categories = new string[] { "Advanced" } });
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Folder ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datastore ID"));
@@ -75,9 +79,12 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Network ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(NetworkAdapterType)), "Network Adapter Type"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "CPU"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "CPU Hot Plug") { Categories = new string[] { "Advanced" } });
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Memory (GB)"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Memory Hot Plug"){ Categories = new string[] { "Advanced" } });
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SCSIController)), "SCSI Controller"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Disk Size (GB)"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SimpleKeyValuePair)), "Extra Config", true, true, false) { Categories = new string[] { "Advanced" } });
             if (storageDRS)
             {
                 dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Cluster ID"));
@@ -114,10 +121,13 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         bool SecureBoot = data.Data["Secure Boot"] as bool? ?? false;
         bool SyncTime = data.Data["Synchronize Time with Host"] as bool? ?? true;
         int? Cpu = data.Data["CPU"] as int?;
+        bool CpuHotPlug = data.Data["CPU Hot Plug"] as bool? ?? true;
         int? Memory = data.Data["Memory (GB)"] as int?;
+        bool MemoryHotPlug = data.Data["Memory Hot Plug"] as bool? ?? true;
         int? DiskSize = data.Data["Disk Size (GB)"] as int?;
         SCSIController SCSIController = (SCSIController)data.Data["SCSI Controller"];
         string? ClusterId = data.Data["Cluster ID"] as string;
+        SimpleKeyValuePair[] ExtraConfig = (SimpleKeyValuePair[])data.Data["Extra Config"];
 
 
 
@@ -204,6 +214,22 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmConfigSpec.GuestId = OSType.ToString();
             vmConfigSpec.Files = new VirtualMachineFileInfo();
             vmConfigSpec.Files.VmPathName = "[" + DatastoreName + "]";
+            vmConfigSpec.CpuHotAddEnabled = CpuHotPlug;
+            vmConfigSpec.CpuHotRemoveEnabled = CpuHotPlug;
+            vmConfigSpec.MemoryHotAddEnabled = MemoryHotPlug;
+            
+            if (ExtraConfig != null) {
+                List<OptionValue> Options = new List<OptionValue>();
+                foreach(SimpleKeyValuePair Config in ExtraConfig) {
+                    var Option = new OptionValue {
+                        Key = Config.Key,
+                        Value = Config.Value
+                    };
+                    Options.Add(Option);
+                }
+                vmConfigSpec.ExtraConfig = Options.ToArray();
+            }
+            
 
             VirtualMachineBootOptions bootOptions = new VirtualMachineBootOptions();
             bootOptions.EfiSecureBootEnabled = SecureBoot; // Enable/Disable EFI Secure Boot

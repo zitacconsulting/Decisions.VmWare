@@ -17,6 +17,29 @@ public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
     private bool ignoreSSLErrors;
 
     [WritableValue]
+    private string? fetchTypes;
+
+    [WritableValue]
+    [SelectStringEditor("FetchTypeValidValues")]
+    public string FetchTypes {
+        get { return fetchTypes; }
+        set { fetchTypes = value;}
+         }
+
+    [PropertyHidden]
+    public string[] FetchTypeValidValues
+    {
+        get
+        {
+            return new[] {
+                    "Both", "Networks", "Portgroups"
+                };
+
+        }
+        set { return; }
+    }
+
+    [WritableValue]
     private bool showOutcomeforNoResults;
 
     [PropertyClassification(0, "Ignore SSL Errors", new string[] { "Settings" })]
@@ -122,7 +145,7 @@ public class GetNetworks : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataPro
                 foreach (EntityViewBase evb in networks)
                 {
                     VMware.Vim.Network network = evb as VMware.Vim.Network;
-                    if (network != null)
+                    if (network != null && (network.GetType().ToString() == "VMware.Vim.DistributedVirtualPortgroup" && fetchTypes != "Networks") || (network.GetType().ToString() == "VMware.Vim.Network" && fetchTypes != "Portgroups"))
                     {
                         Network NewNetwork = new Network(network);
                         Networks.Add(NewNetwork);

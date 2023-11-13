@@ -11,6 +11,12 @@ public class VmNic
 
     [DataMember]
     public string? Name { get; set; }
+ 
+    [DataMember]
+    public int? Key { get; set; }
+
+    [DataMember]
+    public string? Type { get; set; }
 
     [DataMember]
     public string? NetworkName { get; set; }
@@ -32,6 +38,8 @@ public class VmNic
     public VmNic(VirtualEthernetCard nic)
     {
         this.Name = nic.DeviceInfo.Label;
+        this.Type = nic.GetType().Name;
+        this.Key = nic.Key;
         if (nic.Backing is VirtualEthernetCardNetworkBackingInfo networkBacking)
         {
             this.NetworkName = networkBacking.DeviceName.ToString();
