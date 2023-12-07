@@ -8,21 +8,25 @@ using DecisionsFramework.Design.Flow.CoreSteps;
 
 namespace Zitac.VmWare.Steps;
 
-[AutoRegisterStep("Power On VM", "Integration", "VmWare", "VM")]
+[AutoRegisterStep("Power Off VM", "Integration", "VmWare", "VM")]
 [Writable]
-public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
+public class PowerOffVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProducer //, INotifyPropertyChanged
 {
     [WritableValue]
     private bool ignoreSSLErrors;
 
     [WritableValue]
-    private bool alreadyRunning;
+    private bool waitForPowerOff;
 
     [WritableValue]
-    private bool waitForPowerOn;
+    private bool hardPowerOff;
+
 
     [WritableValue]
     private bool specifyTimeout;
+
+    [WritableValue]
+    private bool notRunning;
 
     [WritableValue]
     private Int32 maxTimeout;
@@ -35,28 +39,36 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
 
     }
 
-    [PropertyClassification(0, "Show outcome for 'Already Running'", new string[] { "Settings" })]
-    public bool AlreadyRunning
+    [PropertyClassification(0, "Show outcome for 'Not Running'", new string[] { "Settings" })]
+    public bool NotRunning
     {
-        get { return alreadyRunning; }
-        set { alreadyRunning = value; }
+        get { return notRunning; }
+        set { notRunning = value; }
 
     }
 
-    [PropertyClassification(6, "Wait For OS Boot (Requires VMware Tools)", new string[] { "Settings" })]
-    public bool WaitForPowerOn
+    [PropertyClassification(6, "Wait For Power Off", new string[] { "Settings" })]
+    public bool WaitForPowerOff
     {
-        get { return waitForPowerOn; }
+        get { return waitForPowerOff; }
         set
         {
-            waitForPowerOn = value;
-            this.OnPropertyChanged(nameof(WaitForPowerOn));
+            waitForPowerOff = value;
+            this.OnPropertyChanged(nameof(WaitForPowerOff));
             this.OnPropertyChanged("SpecifyTimeout");
 
         }
     }
 
-    [BooleanPropertyHidden("WaitForPowerOn", false)]
+    [PropertyClassification(0, "Perform Hard PowerOff", new string[] { "Settings" })]
+    public bool HardPowerOff
+    {
+        get { return hardPowerOff; }
+        set { hardPowerOff = value; }
+
+    }
+
+    [BooleanPropertyHidden("WaitForReboot", false)]
     [PropertyClassification(7, "Specify Timeout", new string[] { "Settings" })]
     public bool SpecifyTimeout
     {
@@ -72,7 +84,7 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
 
 
     [BooleanPropertyHidden("SpecifyTimeout", false)]
-    [BooleanPropertyHidden("WaitForPowerOn", false)]
+    [BooleanPropertyHidden("WaitForReboot", false)]
     [PropertyClassification(8, "Timeout In Sec", new string[] { "Settings" })]
     public Int32 MaxTimeout
     {
@@ -103,13 +115,13 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
             outcomeScenarioDataList.Add(new OutcomeScenarioData("Done"));
-            if (WaitForPowerOn && SpecifyTimeout)
+            if (WaitForPowerOff && SpecifyTimeout)
             {
                 outcomeScenarioDataList.Add(new OutcomeScenarioData("Timeout"));
             }
-            if (AlreadyRunning)
+            if (NotRunning)
             {
-                outcomeScenarioDataList.Add(new OutcomeScenarioData("Already Running"));
+                outcomeScenarioDataList.Add(new OutcomeScenarioData("Not Running"));
             }
             outcomeScenarioDataList.Add(new OutcomeScenarioData("Error", new DataDescription(typeof(string), "Error Message")));
             return outcomeScenarioDataList.ToArray();
@@ -138,76 +150,67 @@ public class PowerOnVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             vmMor.Value = VmID;
 
             var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
-
-            if (vm == null)
+            if (HardPowerOff == false && vm.Guest.ToolsVersionStatus == "guestToolsNotInstalled")
             {
-                vimClient.Logout();
-                vimClient.Disconnect();
-                throw new Exception("Failed to add Find VM with ID:" + VmID);
-            }
-
-
-            if (vm.Runtime.PowerState.ToString() == "poweredOn")
-            {
-                if (AlreadyRunning)
+                return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
                 {
-                    return new ResultData("Already Running");
+                {
+                    "Error Message",
+                    (object) "VMware Tools need to be installed on guest to perform graceful power off"
+                }
+                });
+            }
+            if (vm.Runtime.PowerState.ToString() != "poweredOn")
+            {
+                if (NotRunning)
+                {
+                    return new ResultData("Not Running");
                 }
                 return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
                 {
                 {
                     "Error Message",
-                    (object) "VM Already in a running state"
+                    (object) "Can only power off VM's in a running state"
                 }
                 });
             }
-            ManagedObjectReference taskMor = vm.PowerOnVM_Task(null);
-
-            VMware.Vim.Task TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
-            while ((TaskResult.Info.State.ToString() == "running") || (TaskResult.Info.State.ToString() == "queued"))
+            if (HardPowerOff)
             {
-                //Console.WriteLine(TaskResult.Info.State);
-                System.Threading.Thread.Sleep(2000);
-                TaskResult.UpdateViewData();
+
+                ManagedObjectReference taskMor = vm.PowerOffVM_Task();
+            }
+            else
+            {
+                vm.ShutdownGuest();
             }
 
-            if (TaskResult.Info.State.ToString() == "error")
+            if (WaitForPowerOff == true)
             {
-                throw new Exception("Failed to power on VM:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
-            }
-
-            if (WaitForPowerOn == true)
-            {
-                bool isBooted = false;
+                bool hasShutDown = false;
                 int timeout = 5;
-                while (!isBooted)
+                while (!hasShutDown)
                 {
-                    System.Threading.Thread.Sleep(5000);  // wait for 5 seconds before next poll
+                    System.Threading.Thread.Sleep(3000);  // wait for 3 seconds before next poll
 
                     // Refresh the VirtualMachine object to get the latest guest info
-                    vm.UpdateViewData("Guest");
-                    Console.WriteLine(vm.Guest.GuestState);
-                    Console.WriteLine(vm.Guest.ToolsStatus);
-                    Console.WriteLine(vm.Guest.ToolsRunningStatus);
-                    Console.WriteLine(timeout);
+                    vm.UpdateViewData("Runtime");
 
-
-                    // Check the guest OS status and tools status
-                    if (vm.Guest.GuestState == "running" && vm.Guest.ToolsRunningStatus == "guestToolsRunning")
+                    // First check that the VM actually has been turned off
+                    if (vm.Runtime.PowerState.ToString() == "poweredOff")
                     {
-                        isBooted = true;
+                        hasShutDown = true;
                     }
-                    timeout = timeout + 5;
-                    if (specifyTimeout && timeout >= maxTimeout)
+                    else
                     {
-                        vimClient.Logout();
-                        vimClient.Disconnect();
-                        return new ResultData("Timeout");
+                        timeout = timeout + 3;
+                        if (specifyTimeout && timeout >= maxTimeout)
+                        {
+                            vimClient.Logout();
+                            vimClient.Disconnect();
+                            return new ResultData("Timeout");
+                        }
                     }
                 }
-            }
-            else {
-
             }
 
             vimClient.Logout();

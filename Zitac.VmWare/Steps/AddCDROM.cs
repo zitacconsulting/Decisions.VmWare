@@ -46,7 +46,7 @@ public class AddCDROM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         {
             List<OutcomeScenarioData> outcomeScenarioDataList = new List<OutcomeScenarioData>();
 
-            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done"));
+            outcomeScenarioDataList.Add(new OutcomeScenarioData("Done", new DataDescription(typeof(int), "Key")));
             outcomeScenarioDataList.Add(new OutcomeScenarioData("Error", new DataDescription(typeof(string), "Error Message")));
             return outcomeScenarioDataList.ToArray();
         }
@@ -157,9 +157,11 @@ public class AddCDROM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             }
 
 
+            vm.UpdateViewData("Config.Hardware.Device");
+
             foreach (VirtualDevice device in vm.Config.Hardware.Device)
             {
-                if (device.ControllerKey == controllerKey && device.UnitNumber == FirstAvail.UnitNumber)
+                if (device.ControllerKey == FirstAvail.ControllerKey && device.UnitNumber == FirstAvail.UnitNumber)
                 {
                     CDKey = device.Key;
                 }

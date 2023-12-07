@@ -4,7 +4,7 @@
     "Version": "8.15.0",
     "RequiresLicense": false,
     "Description": "This module adds steps to Integrate with VMware",
-    "CompiledOnDate": "2023-10-18T11:52:29.8228305+01:30",
+    "CompiledOnDate": "2023-12-07T11:52:29.8228305+01:30",
     "CompiledOnServer": "KEVI",
     "ImagePath": "./CustomImages/vmware.svg",
     "Installed": false,
