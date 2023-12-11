@@ -15,6 +15,11 @@ public static class VMwarePropertyLists
         "Runtime.PowerState",
         "Guest"
     };
+    public static readonly string[] VirtualMachineBaseProperties = new string[]
+    {
+        "Name",
+        "Guest.HostName"
+    };
     public static readonly string[] ClusterProperties = new string[]
     {
         "Name"
