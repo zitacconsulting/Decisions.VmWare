@@ -85,10 +85,6 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SCSIController)), "SCSI Controller"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Disk Size (GB)"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SimpleKeyValuePair)), "Extra Config", true, true, false) { Categories = new string[] { "Advanced" } });
-            if (storageDRS)
-            {
-                dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Cluster ID"));
-            }
             return dataDescriptionList.ToArray();
         }
     }
@@ -126,7 +122,6 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         bool MemoryHotPlug = data.Data["Memory Hot Plug"] as bool? ?? true;
         int? DiskSize = data.Data["Disk Size (GB)"] as int?;
         SCSIController SCSIController = (SCSIController)data.Data["SCSI Controller"];
-        string? ClusterId = data.Data["Cluster ID"] as string;
         SimpleKeyValuePair[] ExtraConfig = (SimpleKeyValuePair[])data.Data["Extra Config"];
 
 
