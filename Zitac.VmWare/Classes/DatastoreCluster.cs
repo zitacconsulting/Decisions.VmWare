@@ -19,6 +19,9 @@ public class DatastoreCluster
 
     [DataMember]
     public long FreeSpace { get; set; }
+    
+    [DataMember]
+    public bool DRSEnabled { get; set; }
 
     public DatastoreCluster() { }
 
@@ -29,6 +32,7 @@ public class DatastoreCluster
         this.ID = pod.MoRef.Value;
         this.Capacity = pod.Summary.Capacity;
         this.FreeSpace = pod.Summary.FreeSpace;
+        this.DRSEnabled = pod.PodStorageDrsEntry.StorageDrsConfig.PodConfig.Enabled;
     }
 }
 

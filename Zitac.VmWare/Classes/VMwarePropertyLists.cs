@@ -35,7 +35,8 @@ public static class VMwarePropertyLists
         //"Host",
         "Summary.Capacity",
         "Summary.FreeSpace",
-        "ChildEntity"
+        "ChildEntity",
+        "PodStorageDrsEntry.StorageDrsConfig.PodConfig"
 
     };
     public static readonly string[] DatastoreProperties = new string[]
