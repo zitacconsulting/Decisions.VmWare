@@ -19,9 +19,6 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
     private bool ignoreSSLErrors;
 
     [WritableValue]
-    private bool storageCluster;
-
-    [WritableValue]
     private bool storageDRS;
 
     [PropertyClassification(0, "Ignore SSL Errors", new string[] { "Settings" })]
@@ -31,19 +28,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         set { ignoreSSLErrors = value; }
 
     }
-    [PropertyClassification(0, "Use Storage Cluster", new string[] { "Settings" })]
-    public bool StorageCluster
-    {
-        get { return storageCluster; }
-        set
-        {
-            storageCluster = value;
-            this.OnPropertyChanged(nameof(StorageCluster));
-            this.OnPropertyChanged("StorageDRS");
-        }
-    }
 
-    [BooleanPropertyHidden("StorageCluster", false)]
     [PropertyClassification(7, "Use Storage DRS", new string[] { "Settings" })]
     public bool StorageDRS
     {
@@ -196,13 +181,13 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             String DatastoreName = null;
 
             ManagedObjectReference datastoreMor = new ManagedObjectReference();
-            if (storageCluster) { datastoreMor.Type = "StoragePod"; }
+            if (storageDRS) { datastoreMor.Type = "StoragePod"; }
             else { datastoreMor.Type = "Datastore"; }
 
             datastoreMor.Value = DatastoreId;
             var DatastoreEntity = vimClient.GetView(datastoreMor, null);
 
-            if (storageCluster)
+            if (storageDRS)
             {
                 var StoragePod = DatastoreEntity as VMware.Vim.StoragePod;
                 DatastoreName = StoragePod.Name;
@@ -287,7 +272,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 // Disk settings
 
                 // Place with VM if it's clustered, use datastore if datastore
-                if (!storageCluster)
+                if (!storageDRS)
                 {
                     diskBackingInfo.Datastore = datastoreMor;
                 }
@@ -442,9 +427,9 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                     NewVM = new VM(vm);
                 }
                 else
-                {
-                    VirtualMachine vm = (VirtualMachine)vimClient.GetView(TaskResult.Info.Entity, VMwarePropertyLists.VirtualMachineProperties);
-                    NewVM = new VM(vm);
+                {             
+                    VirtualMachine vm = (VirtualMachine)vimClient.GetView((ManagedObjectReference)TaskResult.Info.Result, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
+                    NewVM = new VM((VMware.Vim.VirtualMachine) vm);
                 }
             }
             else

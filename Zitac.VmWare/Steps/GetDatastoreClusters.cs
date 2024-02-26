@@ -20,6 +20,9 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
     private bool includeClusterWithoutHost;
 
     [WritableValue]
+    private bool includeClusterWithDRSDisabled;
+
+    [WritableValue]
     private bool showOutcomeforNoResults;
 
     [PropertyClassification(0, "Ignore SSL Errors", new string[] { "Settings" })]
@@ -35,6 +38,14 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
     {
         get { return includeClusterWithoutHost; }
         set { includeClusterWithoutHost = value; }
+
+    }
+
+    [PropertyClassification(0, "Include Clusters With DRS Disabled", new string[] { "Settings" })]
+    public bool IncludeClusterWithDRSDisabled
+    {
+        get { return includeClusterWithDRSDisabled; }
+        set { includeClusterWithDRSDisabled = value; }
 
     }
 
@@ -126,7 +137,6 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
             NameValueCollection searchfilter = new NameValueCollection();
             searchfilter.Add("Summary.Capacity", "^(?!0$)");
 
-
             var storagePods = vimClient.FindEntityViews(typeof(VMware.Vim.StoragePod), searchRoot, searchfilter, VMwarePropertyLists.DatastoreClusterProperties);
 
             if (storagePods != null)
@@ -137,6 +147,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                     if (pod != null)
                     {
                         bool hasAssociatedHosts = false;
+                        bool isDRS = false;
 
                         if (includeClusterWithoutHost)
                         {
@@ -154,7 +165,12 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                                 }
                             }
                         }
-                        if (hasAssociatedHosts)
+                        if (includeClusterWithDRSDisabled || pod.PodStorageDrsEntry.StorageDrsConfig.PodConfig.Enabled)
+                        {
+                            isDRS = true;
+                        }
+
+                        if (hasAssociatedHosts && isDRS)
                         {
                             DatastoreCluster NewCluster = new DatastoreCluster(pod);
                             StoragePods.Add(NewCluster);
@@ -176,7 +192,7 @@ public class GetDatastoreCluster : BaseFlowAwareStep, ISyncStep, IDataConsumer, 
                 //Console.WriteLine("No storage pods found.");
             }
 
-            
+
             // Disconnect from vSphere server
             vimClient.Logout();
             vimClient.Disconnect();
