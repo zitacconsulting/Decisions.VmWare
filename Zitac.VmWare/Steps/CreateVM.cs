@@ -44,19 +44,20 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
     {
         get
         {
-            IInputMapping[] inputMappingArray = new IInputMapping[11];
+            IInputMapping[] inputMappingArray = new IInputMapping[13];
             inputMappingArray[0] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Datacenter ID" };
-            inputMappingArray[1] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Folder ID" };
-            inputMappingArray[2] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "ISO File" };
-            inputMappingArray[3] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Network ID" };
-            inputMappingArray[4] = (IInputMapping)new ConstantInputMapping() { InputDataName = "OS Type" };
-            inputMappingArray[5] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Firmware" };
-            inputMappingArray[6] = (IInputMapping)new ConstantInputMapping() { InputDataName = "SCSI Controller" };
-            inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Network Adapter Type" };
-            inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Synchronize Time with Host", Value = true };
-            inputMappingArray[8] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Memory Hot Plug", Value = false };
-            inputMappingArray[9] = (IInputMapping)new ConstantInputMapping() { InputDataName = "CPU Hot Plug", Value = false };
-            inputMappingArray[10] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Extra Config" };
+            inputMappingArray[1] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Cluster ID" };
+            inputMappingArray[2] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Folder ID" };
+            inputMappingArray[3] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "ISO File" };
+            inputMappingArray[4] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Network ID" };
+            inputMappingArray[5] = (IInputMapping)new ConstantInputMapping() { InputDataName = "OS Type" };
+            inputMappingArray[6] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Firmware" };
+            inputMappingArray[7] = (IInputMapping)new ConstantInputMapping() { InputDataName = "SCSI Controller" };
+            inputMappingArray[8] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Network Adapter Type" };
+            inputMappingArray[9] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Synchronize Time with Host", Value = true };
+            inputMappingArray[10] = (IInputMapping)new ConstantInputMapping() { InputDataName = "Memory Hot Plug", Value = false };
+            inputMappingArray[11] = (IInputMapping)new ConstantInputMapping() { InputDataName = "CPU Hot Plug", Value = false };
+            inputMappingArray[12] = (IInputMapping)new IgnoreInputMapping() { InputDataName = "Extra Config" };
             return inputMappingArray;
         }
     }
@@ -71,9 +72,10 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "VM Name"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(GuestOS)), "OS Type"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Firmware)), "Firmware"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Secure Boot"){ Categories = new string[] { "Advanced" } });
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Synchronize Time with Host"){ Categories = new string[] { "Advanced" } });
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Secure Boot") { Categories = new string[] { "Advanced" } });
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Synchronize Time with Host") { Categories = new string[] { "Advanced" } });
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Cluster ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Folder ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datastore ID"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "ISO File"));
@@ -82,7 +84,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "CPU"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "CPU Hot Plug") { Categories = new string[] { "Advanced" } });
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Memory (GB)"));
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Memory Hot Plug"){ Categories = new string[] { "Advanced" } });
+            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(bool)), "Memory Hot Plug") { Categories = new string[] { "Advanced" } });
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SCSIController)), "SCSI Controller"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(int)), "Disk Size (GB)"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(SimpleKeyValuePair)), "Extra Config", true, true, false) { Categories = new string[] { "Advanced" } });
@@ -108,6 +110,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
         Credentials? Credentials = data.Data["Credentials"] as Credentials;
         string? VmName = data.Data["VM Name"] as string;
         string? DatacenterId = data.Data["Datacenter ID"] as string;
+        string? ClusterID = data.Data["Cluster ID"] as string;
         string? FolderId = data.Data["Folder ID"] as string;
         string? DatastoreId = data.Data["Datastore ID"] as string;
         string? ISOFile = data.Data["ISO File"] as string;
@@ -176,8 +179,6 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 folder = vimClient.GetView(folderMor, null) as VMware.Vim.Folder;
             }
 
-            var resourcePool = (ResourcePool)vimClient.FindEntityView(typeof(ResourcePool), null, new NameValueCollection { { "name", "Resources" } }, null);
-
             String DatastoreName = null;
 
             ManagedObjectReference datastoreMor = new ManagedObjectReference();
@@ -198,6 +199,18 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 DatastoreName = DataStore.Name;
             }
 
+            ResourcePool resourcePool = null;
+            if (String.IsNullOrEmpty(ClusterID))
+            {
+                resourcePool = (ResourcePool)vimClient.FindEntityView(typeof(ResourcePool), null, new NameValueCollection { { "name", "Resources" } }, null);
+            }
+            else
+            {
+                ManagedObjectReference searchRootCluster = new ManagedObjectReference();
+                searchRootCluster.Type = "ClusterComputeResource";
+                searchRootCluster.Value = ClusterID;
+                resourcePool = (ResourcePool)vimClient.FindEntityView(typeof(ResourcePool), searchRootCluster, new NameValueCollection { { "name", "Resources" } }, null);                
+            }
 
             List<VirtualDeviceConfigSpec> ConfigSpecs = new List<VirtualDeviceConfigSpec>();
 
@@ -213,11 +226,14 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmConfigSpec.CpuHotAddEnabled = CpuHotPlug;
             vmConfigSpec.CpuHotRemoveEnabled = CpuHotPlug;
             vmConfigSpec.MemoryHotAddEnabled = MemoryHotPlug;
-            
-            if (ExtraConfig != null) {
+
+            if (ExtraConfig != null)
+            {
                 List<OptionValue> Options = new List<OptionValue>();
-                foreach(SimpleKeyValuePair Config in ExtraConfig) {
-                    var Option = new OptionValue {
+                foreach (SimpleKeyValuePair Config in ExtraConfig)
+                {
+                    var Option = new OptionValue
+                    {
                         Key = Config.Key,
                         Value = Config.Value
                     };
@@ -225,12 +241,12 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 }
                 vmConfigSpec.ExtraConfig = Options.ToArray();
             }
-            
+
 
             VirtualMachineBootOptions bootOptions = new VirtualMachineBootOptions();
             bootOptions.EfiSecureBootEnabled = SecureBoot; // Enable/Disable EFI Secure Boot
             vmConfigSpec.BootOptions = bootOptions;
-  
+
             ToolsConfigInfo toolsOptions = new ToolsConfigInfo();
             toolsOptions.SyncTimeWithHostAllowed = SyncTime; // Enable Disable Sync Time with Host
             vmConfigSpec.Tools = toolsOptions;
@@ -369,6 +385,7 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
             if (storageDRS)
             {
+
                 //Create PodDiskLocator
                 VMware.Vim.PodDiskLocator pdl = new PodDiskLocator();
                 pdl = new PodDiskLocator();
@@ -427,9 +444,9 @@ public class CreateVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                     NewVM = new VM(vm);
                 }
                 else
-                {             
+                {
                     VirtualMachine vm = (VirtualMachine)vimClient.GetView((ManagedObjectReference)TaskResult.Info.Result, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
-                    NewVM = new VM((VMware.Vim.VirtualMachine) vm);
+                    NewVM = new VM((VMware.Vim.VirtualMachine)vm);
                 }
             }
             else
