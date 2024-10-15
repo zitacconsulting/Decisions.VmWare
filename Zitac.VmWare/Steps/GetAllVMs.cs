@@ -85,13 +85,13 @@ public class GetAllVMs : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
             List<DataDescription> dataDescriptionList = new List<DataDescription>();
             if (multipleServers)
             {
-                dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostnames", true, false, false));
+                dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Host)), "Hostnames", true, false, false));
             }
             else
             {
+                dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
                 dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Hostname"));
             }
-            dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(Credentials)), "Credentials"));
             dataDescriptionList.Add(new DataDescription((DecisionsType)new DecisionsNativeType(typeof(String)), "Datacenter ID"));
             return dataDescriptionList.ToArray();
         }
@@ -122,14 +122,20 @@ public class GetAllVMs : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
 
     public ResultData Run(StepStartData data)
     {
-        List<string> Servers = new List<string>();
+
+        Credentials Credentials = data.Data["Credentials"] as Credentials;
+        List<Host> Servers = new List<Host>();
         if (multipleServers) {
-            Servers.AddRange(data.Data["Hostnames"] as string[]);
+            Servers.AddRange(data.Data["Hostnames"] as Host[]);
         }
         else {
-        Servers.Add(data.Data["Hostname"] as string);
+        Host SingleHost = new Host();
+        SingleHost.Hostname = data.Data["Hostname"] as string;
+        SingleHost.Username = Credentials.Username;
+        SingleHost.Password = Credentials.Password;
+        Servers.Add(SingleHost);
         }
-        Credentials Credentials = data.Data["Credentials"] as Credentials;
+        
         string DatacenterId = data.Data["Datacenter ID"] as string;
 
 
@@ -144,9 +150,9 @@ public class GetAllVMs : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
         }
         try
         {
-            foreach (string Server in Servers) {
-            vimClient.Connect("https://" + Server + "/sdk");
-            vimClient.Login(Credentials.Username, Credentials.Password);
+            foreach (Host Server in Servers) {
+            vimClient.Connect("https://" + Server.Hostname + "/sdk");
+            vimClient.Login(Server.Username, Server.Password);
 
             ManagedObjectReference searchRoot = new ManagedObjectReference();
 
@@ -192,7 +198,7 @@ public class GetAllVMs : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProdu
                     if (getBaseInfo && vm != null)
                     {
                         Console.WriteLine(vm.Name);
-                        VMBase NewVM = new VMBase(vm, Server);
+                        VMBase NewVM = new VMBase(vm, Server.Hostname);
                         BaseVMs.Add(NewVM);
                     }
                 }
