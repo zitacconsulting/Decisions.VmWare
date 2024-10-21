@@ -116,7 +116,30 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 }
 
                 // Get current datastore
-                var currentDatastoreMoref = vm.Datastore[0];
+                ManagedObjectReference currentDatastoreMoref = null;
+
+                foreach (var device in vm.Config.Hardware.Device)
+                {
+                    if (device is VirtualDisk)
+                    {
+                        var virtualDisk = (VirtualDisk)device;
+                        var backing = virtualDisk.Backing as VirtualDiskFlatVer2BackingInfo;
+                        if (backing != null)
+                        {
+                            // Get the datastore associated with this VMDK
+                            var vmdkDatastoreMoref = backing.Datastore;
+                            currentDatastoreMoref = (vimClient.GetView(vmdkDatastoreMoref, null) as VMware.Vim.Datastore).MoRef;
+                            log.Info($"VMDK Datastore: {currentDatastoreMoref}");
+                            break; // Exit after first VMDK, adjust if you need to handle multiple disks.
+                        }
+                    }
+                }
+
+                if (currentDatastoreMoref == null) {
+                        throw new Exception("Could not find Datastore of the virtual disk(s)");
+                }
+
+
                 var currentDatastore = vimClient.GetView(currentDatastoreMoref, null) as VMware.Vim.Datastore;
                 log.Info($"Current Datastore: {currentDatastore.Name} {currentDatastore.MoRef}");
 
