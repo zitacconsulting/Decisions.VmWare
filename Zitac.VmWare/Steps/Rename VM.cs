@@ -32,7 +32,7 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
     }
     [WritableValue]
-    private bool renameFilesAndFolder = true;
+    private bool renameFilesAndFolder;
 
     [PropertyClassification(0, "Rename File and Folders (Only vCenter)", new string[] { "Settings" })]
     public bool RenameFilesAndFolder
@@ -72,7 +72,6 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
     {
         string Hostname = data.Data["Hostname"] as string;
         Credentials Credentials = data.Data["Credentials"] as Credentials;
-        string DatacenterId = data.Data["Datacenter ID"] as string;
         string VmId = data.Data["VM ID"] as string;
         string NewVmName = data.Data["New VM Name"] as string;
 
@@ -102,13 +101,15 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 throw new Exception("Failed to add Find VM with ID:" + VmId);
             }
 
+            VMware.Vim.Datacenter vmDatacenter = GetDatacenterOfVM(vimClient, vm);
+
             // Step 1: Rename the VM in the vCenter inventory
             var renameTask = vm.Rename_Task(NewVmName);
             vimClient.WaitForTask(renameTask);
             Console.WriteLine("Renamed");
             if (renameFilesAndFolder)
             {
-
+                log.Info($"Initiating Rename of Files");
                 if (vm.Runtime.PowerState != VirtualMachinePowerState.poweredOff)
                 {
                     throw new Exception("VM must be powered off to rename the files.");
@@ -117,76 +118,68 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                 // Get current datastore
                 var currentDatastoreMoref = vm.Datastore[0];
                 var currentDatastore = vimClient.GetView(currentDatastoreMoref, null) as VMware.Vim.Datastore;
+                log.Info($"Current Datastore: {currentDatastore.Name} {currentDatastore.MoRef}");
 
                 // Find usable datastores
-                var usableDatastores = FindUsableDatastores(vimClient, vm, currentDatastore);
+                var usableDatastores = FindUsableDatastores(vimClient, vm, currentDatastore, vmDatacenter.MoRef);
 
                 if (!usableDatastores.Any())
                 {
                     throw new Exception("No usable datastores found (Move is needed for renaming files)");
                 }
 
-
                 // Try to move the VM to each usable datastore until successful
                 bool moveSuccessful = false;
                 foreach (var tempDatastore in usableDatastores)
                 {
-                    try
+                    log.Info($"Testing Datastore: {tempDatastore.Name} {tempDatastore.MoRef}");
+                    // Move VM to temp datastore
+                    var relocateSpec = new VirtualMachineRelocateSpec
                     {
-                        // Move VM to temp datastore
-                        var relocateSpec = new VirtualMachineRelocateSpec
-                        {
-                            Datastore = tempDatastore.MoRef
-                        };
+                        Datastore = tempDatastore.MoRef
+                    };
 
-                        var taskMor = vm.RelocateVM_Task(relocateSpec, VirtualMachineMovePriority.defaultPriority);
+                    var taskMor = vm.RelocateVM_Task(relocateSpec, VirtualMachineMovePriority.defaultPriority);
 
-                        VMware.Vim.Task TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
+                    VMware.Vim.Task TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
+                    while ((TaskResult.Info.State.ToString() == "running") || (TaskResult.Info.State.ToString() == "queued"))
+                    {
+                        log.Info($"Task state: {TaskResult.Info.State}");
+                        System.Threading.Thread.Sleep(2000);
+                        TaskResult.UpdateViewData();
+                    }
+
+
+                    if (TaskResult.Info.State == TaskInfoState.success)
+                    {
+                        log.Info($"VM successfully moved to temporary datastore: {tempDatastore.Name}");
+                        moveSuccessful = true;
+
+                        // Move VM back to original datastore
+                        relocateSpec.Datastore = currentDatastore.MoRef;
+                        taskMor = vm.RelocateVM_Task(relocateSpec, VirtualMachineMovePriority.defaultPriority);
+                        TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
                         while ((TaskResult.Info.State.ToString() == "running") || (TaskResult.Info.State.ToString() == "queued"))
                         {
-                            Console.WriteLine(TaskResult.Info.State);
+                            log.Info($"Task state: {TaskResult.Info.State}");
                             System.Threading.Thread.Sleep(2000);
                             TaskResult.UpdateViewData();
                         }
-                        Console.WriteLine(TaskResult.Info.State);
-
-
 
                         if (TaskResult.Info.State == TaskInfoState.success)
                         {
-                            Console.WriteLine($"VM successfully moved to temporary datastore: {tempDatastore.Name}");
-                            moveSuccessful = true;
-
-                            // Move VM back to original datastore
-                            relocateSpec.Datastore = currentDatastore.MoRef;
-                            TaskResult = (VMware.Vim.Task)vimClient.GetView(taskMor, null);
-                            while ((TaskResult.Info.State.ToString() == "running") || (TaskResult.Info.State.ToString() == "queued"))
-                            {
-                                Console.WriteLine(TaskResult.Info.State);
-                                System.Threading.Thread.Sleep(2000);
-                                TaskResult.UpdateViewData();
-                            }
-                            Console.WriteLine(TaskResult.Info.State);
-
-                            if (TaskResult.Info.State == TaskInfoState.success)
-                            {
-                                Console.WriteLine("VM successfully moved back to original datastore.");
-                            }
-                            else
-                            {
-                                throw new Exception($"Failed to move VM back to original datastore. Error: {TaskResult.Info.Error.LocalizedMessage}");
-                            }
-
-                            break;
+                            log.Info($"VM successfully moved back to original datastore. {currentDatastore.Name}");
                         }
                         else
                         {
-                            throw new Exception("Failed to rename VM file:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
+                            throw new Exception($"Failed to move VM back to original datastore. Error: {TaskResult.Info.Error.LocalizedMessage}");
                         }
+
+                        break;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        throw new Exception($"Failed to move VM to datastore {tempDatastore.Name}. Error: {ex.Message}");
+                        throw new Exception("Failed to rename VM file:" + TaskResult.Info.Error.Fault.ToString() + " - " + TaskResult.Info.Error.LocalizedMessage.ToString());
                     }
                 }
 
@@ -195,7 +188,7 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                     throw new Exception("Failed to move VM to any of the available datastores.");
                 }
 
-                Console.WriteLine($"VM renamed to {NewVmName}.");
+                log.Info($"VM renamed to {NewVmName}.");
             }
 
         }
@@ -219,23 +212,51 @@ public class RenameVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
         return new ResultData("Done");
     }
-    static IEnumerable<VMware.Vim.Datastore> FindUsableDatastores(VimClient vimClient, VirtualMachine vm, VMware.Vim.Datastore currentDatastore)
+    static private IEnumerable<VMware.Vim.Datastore> FindUsableDatastores(VimClient vimClient, VirtualMachine vm, VMware.Vim.Datastore currentDatastore, ManagedObjectReference datacenterMoRef)
     {
-        var datastores = vimClient.FindEntityViews(typeof(VMware.Vim.Datastore), null, null, new[] { "name", "summary" });
 
-        // Get the size of the VM
+        // Get current VM size (committed and uncommitted space)
         long vmSize = vm.Summary.Storage.Committed + vm.Summary.Storage.Uncommitted;
+        long requiredSpace = (long)(vmSize * 1.1); // 10% extra space
 
-        return datastores
-            .Cast<VMware.Vim.Datastore>()
-            .Where(ds =>
+        // Fetch the list of datastores
+        var datastores = vimClient.FindEntityViews(typeof(VMware.Vim.Datastore), datacenterMoRef, null, new[] { "name", "summary" });
+
+        // List to store datastores that meet the criteria
+        List<VMware.Vim.Datastore> matchingDatastores = new List<VMware.Vim.Datastore>();
+
+        // Iterate through the retrieved datastores
+        foreach (VMware.Vim.Datastore datastore in datastores)
+        {
+            // Check if the datastore is accessible and has enough free space
+            if (datastore.Summary.Accessible && datastore.Summary.FreeSpace >= requiredSpace)
             {
-                var summary = ds.Summary as DatastoreSummary;
-                return summary != null &&
-                       summary.Accessible &&
-                       summary.FreeSpace > vmSize * 1.1 && // Ensure 10% extra space
-                       ds.MoRef != currentDatastore.MoRef; // Exclude the current datastore
-            })
-            .OrderByDescending(ds => ((DatastoreSummary)ds.Summary).FreeSpace); // Sort by free space, most to least
+                // Ensure we're not selecting the current datastore
+                if (datastore.MoRef.Value != currentDatastore.MoRef.Value)
+                {
+                    // Add to the list of matching datastores
+                    matchingDatastores.Add(datastore);
+                }
+            }
+        }
+
+        // Sort the list of matching datastores by free space in descending order
+        matchingDatastores.Sort((ds1, ds2) => ds2.Summary.FreeSpace.CompareTo(ds1.Summary.FreeSpace));
+        return matchingDatastores;
+    }
+
+    private VMware.Vim.Datacenter GetDatacenterOfVM(VimClient vimClient, VirtualMachine vm)
+    {
+        // Start with the parent of the VM (folder, cluster, etc.)
+        ManagedEntity parentEntity = (ManagedEntity)vimClient.GetView(vm.Parent, null);
+
+        // Traverse up the hierarchy until we find a Datacenter
+        while (parentEntity != null && !(parentEntity is VMware.Vim.Datacenter))
+        {
+            parentEntity = (ManagedEntity)vimClient.GetView(parentEntity.Parent, null);
+        }
+
+        // Return the Datacenter object, or null if not found
+        return parentEntity as VMware.Vim.Datacenter;
     }
 }

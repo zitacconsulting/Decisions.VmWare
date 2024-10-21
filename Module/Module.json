@@ -1,7 +1,7 @@
 {
     "ModuleName": "Zitac",
     "ModuleDependencies": null,
-    "Version": "8.18.0",
+    "Version": "8.21.0",
     "RequiresLicense": false,
     "Description": "This module adds steps to Integrate with VMware",
     "CompiledOnDate": "2023-12-07T11:52:29.8228305+01:30",
