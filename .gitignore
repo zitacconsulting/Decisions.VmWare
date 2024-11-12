@@ -1,2 +1,3 @@
-Zitac.VmWare/obj/
+Zitac.VmWare/obj/*
 .vscode/
+Zitac.VmWare/bin/*

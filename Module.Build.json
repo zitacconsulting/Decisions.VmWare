@@ -1,0 +1,27 @@
+{
+    "Resources": {
+        "NoComponents": true,
+        "CoreServicesDlls": [
+            "./Zitac.VmWare/bin/Zitac.VmWare.Steps.dll"
+        ],
+        "ReferenceDlls": [
+            "./Zitac.VmWare/VimService.dll",
+            "./Zitac.VmWare/VMware.Binding.Wcf.dll",
+            "./Zitac.VmWare/VMware.Binding.WsTrust.dll",
+            "./Zitac.VmWare/VMware.System.Private.ServiceModel.dll",
+            "./Zitac.VmWare/VMware.Vim.dll"
+        ],
+        "CustomImages": null,
+        "CliDlls": null,
+        "WebPages": null,
+        "SilverlightDlls": null,
+        "AgentDlls": null,
+        "InstallScript": null,
+        "SqlScripts": null,
+        "ObjectsToImport": null,
+        "MsSqlScript": null
+    },
+    "Version": "9.4.0",
+    "ImagePath": "vmware.svg",
+    "Description": "This module adds steps to Integrate with VMware"
+}
