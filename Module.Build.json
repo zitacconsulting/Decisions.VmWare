@@ -11,6 +11,9 @@
             "./Zitac.VmWare/VMware.System.Private.ServiceModel.dll",
             "./Zitac.VmWare/VMware.Vim.dll"
         ],
+        "CustomImages": [
+            "vmware.svg"
+        ],
         "CustomImages": null,
         "CliDlls": null,
         "WebPages": null,
@@ -21,7 +24,7 @@
         "ObjectsToImport": null,
         "MsSqlScript": null
     },
-    "Version": "9.5.0",
+    "Version": "9.6.0",
     "ImagePath": "vmware.svg",
     "Description": "This module adds steps to Integrate with VMware"
 }
