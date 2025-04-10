@@ -1,4 +1,5 @@
 namespace Zitac.VmWare.Steps;
+
 public static class VMwarePropertyLists
 {
     public static readonly string[] VirtualMachineProperties = new string[]
@@ -62,5 +63,19 @@ public static class VMwarePropertyLists
         "Name",
         "Uuid"
 
+    };
+
+    public static readonly string[] HostSystemProperties = new string[]
+    {
+    "Name",
+    "Runtime.ConnectionState",
+    "Runtime.InMaintenanceMode",
+    "Runtime.PowerState",
+    "Config.Product.Version",
+    "Config.Product.Build",
+    "Hardware.CpuInfo.NumCpuCores",
+    "Hardware.CpuInfo.NumCpuThreads",
+    "Hardware.MemorySize",
+    "Parent"
     };
 }

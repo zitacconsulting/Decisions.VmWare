@@ -138,16 +138,9 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             vmMor.Value = VmID;
 
             var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
-            if (WaitForReboot == true && vm.Guest.ToolsVersionStatus == "guestToolsNotInstalled")
-            {
-                return new ResultData("Error", (IDictionary<string, object>)new Dictionary<string, object>()
-                {
-                {
-                    "Error Message",
-                    (object) "VMware Tools need to be installed on guest to allow 'Wait for Reboot'"
-                }
-                });
-            }
+
+            DateTime? lastBootTime = vm.Summary.Runtime.BootTime;
+
             if (vm.Runtime.PowerState.ToString() != "poweredOn")
             {
                 if (NotRunning)
@@ -166,32 +159,22 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
             if (WaitForReboot == true)
             {
                 bool isRebooted = false;
-                bool hasShutDown = false;
                 int timeout = 5;
                 while (!isRebooted)
                 {
                     System.Threading.Thread.Sleep(5000);  // wait for 5 seconds before next poll
 
-                    // Refresh the VirtualMachine object to get the latest guest info
-                    vm.UpdateViewData("Guest");
-                    Console.WriteLine(vm.Guest.GuestState);
-                    Console.WriteLine(vm.Guest.ToolsStatus);
-                    Console.WriteLine(vm.Guest.ToolsRunningStatus);
-                    Console.WriteLine(hasShutDown);
+                    // Refresh the VirtualMachine object to get the latest Boot Time
+                    vm.UpdateViewData("Summary.Runtime");
+                    Console.WriteLine(vm.Summary.Runtime.BootTime);
                     Console.WriteLine(timeout);
 
-                    // First check that the VM actually has been turned off
-                    if (vm.Guest.ToolsRunningStatus == "guestToolsNotRunning")
-                    {
-                        hasShutDown = true;
-                    }
-
-                    // Check the guest OS status and tools status
-                    if (vm.Guest.GuestState == "running" && vm.Guest.ToolsRunningStatus == "guestToolsRunning" && hasShutDown == true)
+                    if (vm.Summary.Runtime.BootTime > lastBootTime)
                     {
                         isRebooted = true;
                     }
-                    timeout = timeout + 5;
+
+                    timeout += 5;
                     if (specifyTimeout && timeout >= maxTimeout)
                     {
                         vimClient.Logout();
