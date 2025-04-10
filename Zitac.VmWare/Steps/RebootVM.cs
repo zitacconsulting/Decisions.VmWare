@@ -139,7 +139,7 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
 
             var vm = vimClient.GetView(vmMor, VMwarePropertyLists.VirtualMachineProperties) as VirtualMachine;
 
-            DateTime? lastBootTime = vm.Summary.Runtime.BootTime;
+            DateTime? initialBootTime = vm.Summary.Runtime.BootTime;
 
             if (vm.Runtime.PowerState.ToString() != "poweredOn")
             {
@@ -169,9 +169,29 @@ public class RebootVM : BaseFlowAwareStep, ISyncStep, IDataConsumer, IDataProduc
                     Console.WriteLine(vm.Summary.Runtime.BootTime);
                     Console.WriteLine(timeout);
 
-                    if (vm.Summary.Runtime.BootTime > lastBootTime)
+                    // If we had a valid boot time before, and now it's either different or null during reboot
+                    if (initialBootTime.HasValue)
                     {
-                        isRebooted = true;
+                        if (!vm.Summary.Runtime.BootTime.HasValue ||
+                            vm.Summary.Runtime.BootTime > initialBootTime)
+                        {
+                            // Wait for boot time to stabilize and be valid
+                            if (vm.Summary.Runtime.BootTime.HasValue &&
+                                vm.Summary.Runtime.PowerState == VirtualMachinePowerState.poweredOn)
+                            {
+                                isRebooted = true;
+                            }
+                        }
+                    }
+                    // If we didn't have valid boot time initially, fall back to power state check
+                    else if (vm.Summary.Runtime.PowerState == VirtualMachinePowerState.poweredOn)
+                    {
+                        // Check if Tools are running too for extra validation
+                        vm.UpdateViewData("Guest");
+                        if (vm.Guest.ToolsRunningStatus == "guestToolsRunning")
+                        {
+                            isRebooted = true;
+                        }
                     }
 
                     timeout += 5;
