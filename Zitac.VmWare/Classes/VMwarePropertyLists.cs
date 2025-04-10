@@ -14,7 +14,8 @@ public static class VMwarePropertyLists
         "Config.Hardware.Device",
         "Config.GuestFullName",
         "Runtime.PowerState",
-        "Guest"
+        "Guest",
+        "Summary.Runtime"
     };
     public static readonly string[] VirtualMachineBaseProperties = new string[]
     {
