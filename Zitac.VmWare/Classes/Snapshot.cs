@@ -1,7 +1,9 @@
 using System.Runtime.Serialization;
+using DecisionsFramework.ServiceLayer.Utilities;
 
 namespace Zitac.VmWare.Steps;
 
+[AutoRegisterNativeType]
 [DataContract]
 public class Snapshot
 {

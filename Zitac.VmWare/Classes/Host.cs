@@ -2,10 +2,10 @@ using DecisionsFramework.Design.Properties.Attributes;
 using DecisionsFramework.Design.ConfigurationStorage.Attributes;
 using DecisionsFramework.Design.Flow.Service.Debugging.DebugData;
 using System.Runtime.Serialization;
-
+using DecisionsFramework.ServiceLayer.Utilities; 
 
 namespace Zitac.VmWare.Steps;
-
+        [AutoRegisterNativeType]
         [DataContract]
         public class Host : IDebuggerJsonProvider
     {
