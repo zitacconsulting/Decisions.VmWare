@@ -23,7 +23,7 @@
         "ObjectsToImport": null,
         "MsSqlScript": null
     },
-    "Version": "9.15.0",
+    "Version": "9.19.0",
     "ImagePath": "vmware.svg",
     "Description": "This module adds steps to Integrate with VMware"
 }
