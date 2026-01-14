@@ -33,5 +33,4 @@ This module is provided "as is" without warranties of any kind. Use it at your o
 
 ## Installation
 
-1. Download or compile the module and upload it via Decisions Portal (System > Administration > Features).
-2. Configure system and queue settings as needed, then create queues and handlers.
+Download or compile the module and upload it via Decisions Portal (System > Administration > Features).
