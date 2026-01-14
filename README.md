@@ -29,7 +29,7 @@ This module is provided "as is" without warranties of any kind. Use it at your o
 ## Requirements
 
 - Decisions Platform 9+
-- AWS credentials with access to target Kinesis stream
+- VMware credentials with access to intended resources
 
 ## Installation
 
